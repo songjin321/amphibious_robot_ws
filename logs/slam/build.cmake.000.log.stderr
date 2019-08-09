@@ -1,0 +1,18 @@
+[31m[1mCMake Error[0m at /home/user/Project/Final_project/amphibious_robot_ws/src/slam/CMakeLists.txt:18 (add_subdirectory):
+  The source directory
+
+    /home/user/Project/Final_project/amphibious_robot_ws/src/slam/ar_slam
+
+  does not contain a CMakeLists.txt file.
+
+
+[31m[1mCMake Error[0m at /opt/ros/kinetic/share/catkin/cmake/catkin_package_xml.cmake:54 (message):
+  catkin_package_xml() package name 'slam' in
+  '/home/user/Project/Final_project/amphibious_robot_ws/src/slam/package.xml'
+  does not match current PROJECT_NAME 'feature_tracker'.  You must call
+  project() with the same package name before.
+[36mCall Stack (most recent call first):[0m
+  /opt/ros/kinetic/share/catkin/cmake/catkin_package.cmake:99 (catkin_package_xml)
+  CMakeLists.txt:20 (catkin_package)
+
+

@@ -1,0 +1,6 @@
+devel_space: /home/user/Project/Final_project/amphibious_robot_ws/devel
+install: false
+install_space: /home/user/Project/Final_project/amphibious_robot_ws/install
+profile: default
+source_space: /home/user/Project/Final_project/amphibious_robot_ws/src
+workspace: /home/user/Project/Final_project/amphibious_robot_ws

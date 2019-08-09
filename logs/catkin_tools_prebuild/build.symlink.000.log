@@ -1,0 +1,36 @@
+Symlinking /home/user/Project/Final_project/amphibious_robot_ws/devel/./setup.bash
+Symlinking /home/user/Project/Final_project/amphibious_robot_ws/devel/./cmake.lock
+Symlinking /home/user/Project/Final_project/amphibious_robot_ws/devel/./local_setup.sh
+Symlinking /home/user/Project/Final_project/amphibious_robot_ws/devel/./_setup_util.py
+Symlinking /home/user/Project/Final_project/amphibious_robot_ws/devel/./env.sh
+Symlinking /home/user/Project/Final_project/amphibious_robot_ws/devel/./local_setup.bash
+Symlinking /home/user/Project/Final_project/amphibious_robot_ws/devel/./setup.zsh
+Symlinking /home/user/Project/Final_project/amphibious_robot_ws/devel/./setup.sh
+Symlinking /home/user/Project/Final_project/amphibious_robot_ws/devel/./local_setup.zsh
+Symlinking /home/user/Project/Final_project/amphibious_robot_ws/devel/share/catkin_tools_prebuild/cmake/catkin_tools_prebuildConfig.cmake
+Symlinking /home/user/Project/Final_project/amphibious_robot_ws/devel/share/catkin_tools_prebuild/cmake/catkin_tools_prebuildConfig-version.cmake
+Symlinking /home/user/Project/Final_project/amphibious_robot_ws/devel/lib/pkgconfig/catkin_tools_prebuild.pc
+Cleaning: (/home/neousys/Final_project/amphibious_robot_slam_ws/devel/.private/catkin_tools_prebuild/setup.zsh, /home/neousys/Final_project/amphibious_robot_slam_ws/devel/./setup.zsh)
+Cleaning: (/home/neousys/Final_project/amphibious_robot_slam_ws/devel/.private/catkin_tools_prebuild/env.sh, /home/neousys/Final_project/amphibious_robot_slam_ws/devel/./env.sh)
+Cleaning: (/home/neousys/Final_project/amphibious_robot_slam_ws/devel/.private/catkin_tools_prebuild/setup.sh, /home/neousys/Final_project/amphibious_robot_slam_ws/devel/./setup.sh)
+Cleaning: (/home/neousys/Final_project/amphibious_robot_slam_ws/devel/.private/catkin_tools_prebuild/_setup_util.py, /home/neousys/Final_project/amphibious_robot_slam_ws/devel/./_setup_util.py)
+Cleaning: (/home/neousys/Final_project/amphibious_robot_slam_ws/devel/.private/catkin_tools_prebuild/setup.bash, /home/neousys/Final_project/amphibious_robot_slam_ws/devel/./setup.bash)
+Cleaning: (/home/neousys/Final_project/amphibious_robot_slam_ws/devel/.private/catkin_tools_prebuild/lib/pkgconfig/catkin_tools_prebuild.pc, /home/neousys/Final_project/amphibious_robot_slam_ws/devel/lib/pkgconfig/catkin_tools_prebuild.pc)
+Cleaning: (/home/neousys/Final_project/amphibious_robot_slam_ws/devel/.private/catkin_tools_prebuild/share/catkin_tools_prebuild/cmake/catkin_tools_prebuildConfig-version.cmake, /home/neousys/Final_project/amphibious_robot_slam_ws/devel/share/catkin_tools_prebuild/cmake/catkin_tools_prebuildConfig-version.cmake)
+Cleaning: (/home/neousys/Final_project/amphibious_robot_slam_ws/devel/.private/catkin_tools_prebuild/share/catkin_tools_prebuild/cmake/catkin_tools_prebuildConfig.cmake, /home/neousys/Final_project/amphibious_robot_slam_ws/devel/share/catkin_tools_prebuild/cmake/catkin_tools_prebuildConfig.cmake)
+Unlinking: /home/neousys/Final_project/amphibious_robot_slam_ws/devel/./setup.zsh
+Already unlinked: {}
+Unlinking: /home/neousys/Final_project/amphibious_robot_slam_ws/devel/./env.sh
+Already unlinked: {}
+Unlinking: /home/neousys/Final_project/amphibious_robot_slam_ws/devel/./setup.sh
+Already unlinked: {}
+Unlinking: /home/neousys/Final_project/amphibious_robot_slam_ws/devel/./_setup_util.py
+Already unlinked: {}
+Unlinking: /home/neousys/Final_project/amphibious_robot_slam_ws/devel/./setup.bash
+Already unlinked: {}
+Unlinking: /home/neousys/Final_project/amphibious_robot_slam_ws/devel/lib/pkgconfig/catkin_tools_prebuild.pc
+Already unlinked: {}
+Unlinking: /home/neousys/Final_project/amphibious_robot_slam_ws/devel/share/catkin_tools_prebuild/cmake/catkin_tools_prebuildConfig-version.cmake
+Already unlinked: {}
+Unlinking: /home/neousys/Final_project/amphibious_robot_slam_ws/devel/share/catkin_tools_prebuild/cmake/catkin_tools_prebuildConfig.cmake
+Already unlinked: {}
