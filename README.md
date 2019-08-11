@@ -1,17 +1,19 @@
 # 两栖机器人ROS代码仓库
 ## 简介
-1. slam(宋瑾+朱西)
-ar_slam的ros接口，实现鲁棒的vio，并计算当前最优视角
-https://github.com/zhangzichao
+两栖机器人野外环境下视觉定位ROS主仓库。[项目主页](https://git.nrs-lab.com/amphirobot/projectmanagement)
+## 任务分配
+每个人负责的模块写成一个ros包，各人在各自包的分支下进行开发。
+1. active_slam(宋瑾+朱西)
+[ar_slam](https://git.nrs-lab.com/amphirobot/svae-slam)的ros接口，实现鲁棒的vio，并计算当前最优视角
 
 2. exposure_controller(王煜)
-通过主动控制曝光时间来处理野外光线问题
+通过主动控制曝光时间来处理野外光线变化问题，更利于特征的提取和VO的计算
 
-3. manipulate_controller(王志濠)
-接收slam计算的最优视角，并控制机器人视角转动
+3. view_controller(王志濠)
+接收ar_slam_ros计算的最优视角，并控制机器人视角转动
 
 4. navigation
-机器人的顶层导航栈，现阶段无路径规划和机器人底层控制部分,TODO::两栖机器人的轨迹规划，轨迹跟踪和底层的控制
+TODO::两栖机器人的轨迹规划，轨迹跟踪和底层的控制
 
 
 ## 编译安装
