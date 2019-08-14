@@ -1,5 +1,0 @@
--c --cpu Cortex-M3 -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I..\User\inc -I..\Libraries\CMSIS\CoreSupport -I..\Libraries\CMSIS\DeviceSupport -I..\Libraries\StdPeriph_Driver\inc 
--I D:\Keil\ARM\RV31\INC 
--I D:\Keil\ARM\CMSIS\Include 
--I D:\Keil\ARM\Inc\++ST\STM32F10x 
--DUSE_STDPERIPH_DRIVER -DSTM32F10X_HD -DUSE_STM3210E_EVAL -o ".\OBJ\flipperleg.o" --omf_browse ".\OBJ\flipperleg.crf" --depend ".\OBJ\flipperleg.d" "..\User\src\flipperleg.c"
