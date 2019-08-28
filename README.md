@@ -3,17 +3,26 @@
 两栖机器人野外环境下视觉定位ROS主仓库。[项目主页](https://git.nrs-lab.com/amphirobot/projectmanagement)
 ## 任务分配
 每个人负责的模块写成一个ros包，各人在各自包的分支下进行开发。
-1. active_slam(宋瑾+朱西)
-[ar_slam](https://git.nrs-lab.com/amphirobot/svae-slam)的ros接口，实现鲁棒的vio，并计算当前最优视角
+1. ar_slam_ros(宋瑾)
+  [ar_slam](https://git.nrs-lab.com/amphirobot/svae-slam)的ros接口，订阅相机图像，发布相机位姿，当前帧的特征点数量和滑出窗口的估计完成的特征点三维坐标
 
 2. exposure_controller(王煜)
-通过主动控制曝光时间来处理野外光线变化问题，更利于特征的提取和VO的计算
 
-3. view_controller(王志濠)
-接收ar_slam_ros计算的最优视角，并控制机器人视角转动
+  订阅当前的相机图像，修改相机的曝光时间
 
-4. navigation
-TODO::两栖机器人的轨迹规划，轨迹跟踪和底层的控制
+3. information_filed(朱西)
+
+   订阅地图点，提供服务，查询信息最大视角
+
+4. active_localization（王志濠）
+
+   由相机位姿，机器人运动方向计算最优视角
+
+5. view_controller(王志濠)
+  发布一个服务：call一下可以调整视角
+
+6. navigation
+  TODO::两栖机器人的轨迹规划，轨迹跟踪和底层的控制
 
 
 ## 编译安装
