@@ -54,3 +54,10 @@ http://file.nrs-lab.com/f/158206
 
 1. roslaunch navigation realsense.launch
 2. rosbag play demo.bag
+
+
+## 开发流程
+1. git clone https://git.nrs-lab.com/amphirobot/amphibious_robot_ws-.git
+2. git checkout -b develop-view_controller origin/develop-view_controller(这个替换成自己需要开发的远程分支名)
+3. 进行开发，疯狂commit，每日一次，神清气爽
+4. git push
