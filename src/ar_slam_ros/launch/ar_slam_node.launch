@@ -1,0 +1,5 @@
+<launch>
+    <node name="ar_slam_node" pkg="ar_slam_ros" type="ar_slam_node" output="screen">
+        <param name="config_filename" value="$(find ar_slam_ros)/config/demo_d435i.yaml" />
+    </node>
+</launch>
