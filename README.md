@@ -35,10 +35,11 @@ sudo apt install libgoogle-glog-dev
 sudo apt install libeigen3-dev
 - ceres     
 https://github.com/ceres-solver/ceres-solver
+- opencv
 - ros包依赖  
 rosdep install --from-paths src --ignore-src -r -y（**每一个包都要在自己的package.xml中写好相关的依赖**）
 ### 2.下载代码
-git clone --recursive 
+git clone --recursive https://git.nrs-lab.com/amphirobot/amphibious_robot_ws-.git
 
 ### 3.编译
 1. sudo apt-get install ros-kinetic-catkin python-catkin-tools（安装catkin）
@@ -47,14 +48,15 @@ git clone --recursive
 
 ## 运行测试
 
-### 1. 跑包
+### 1. 测试ar_slam
 
 从实验室网盘上下载包
 http://file.nrs-lab.com/f/158206
 
-1. roslaunch navigation realsense.launch
+1. roslaunch navigation demo_bag.launch
 2. rosbag play demo.bag
 
+### 2. 测试XXX
 
 ## 开发流程
 1. git clone https://git.nrs-lab.com/amphirobot/amphibious_robot_ws-.git

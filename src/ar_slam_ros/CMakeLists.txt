@@ -24,16 +24,19 @@ catkin_package(
 )
 
 # add ar_slam, generater corresponds library
-# add_subdirectory(ar_slam)
+add_subdirectory(ar_slam)
 
-## find package
+# find package
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
-# glog
+## glog
 find_package(Glog REQUIRED)
 include_directories(${GLOG_INCLUDE_DIRS}) 
-# eigen3
+## eigen3
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIRS}) 
+## opencv
+find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS}) 
 
 # add include path
 include_directories(
@@ -58,4 +61,6 @@ add_executable(ar_slam_node
 target_link_libraries(ar_slam_node 
 ${catkin_LIBRARIES}
 ${GLOG_LIBRARIES}
+${OpenCV_LIBS}
+arslam_common
 ) 
