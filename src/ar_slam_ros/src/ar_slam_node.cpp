@@ -14,7 +14,7 @@
 #include <string>
 #include "arslam/Subscriber.hpp"
 #include "arslam/Publisher.hpp"
-//#include "arslam/FixlagFeatureVIO.hpp"
+#include "arslam/FixlagFeatureVIO.hpp"
 #include "arslam/VioParametersReader.hpp"
 
 int main(int argc, char** argv)
@@ -26,8 +26,6 @@ int main(int argc, char** argv)
     // initialise logging
     google::InitGoogleLogging(argv[0]);
     FLAGS_stderrthreshold = 0; // INFO: 0, WARNING: 1, ERROR: 2, FATAL: 3
-    // publisher
-    arslam::Publisher publisher(nh);
 
     // read configuration file
     std::string configFilename;
@@ -39,17 +37,18 @@ int main(int argc, char** argv)
     arslam::VioParameters parameters;
     vio_parameters_reader.getParameters(parameters);
     
-    /*
     // initialise estimator
-    okvis::ThreadedKFVio okvis_estimator(parameters);
+    arslam::FixlagFeatureVIO estimator(parameters);
+
+    // set publisher
+    arslam::Publisher publisher(nh);
+    estimator.setStateCallback(std::bind(&arslam::Publisher::publishStateAsCallback, &publisher,std::placeholders::_1,std::placeholders::_2));
 
     // subscriber loop
-    okvis::Subscriber subscriber(nh, &okvis_estimator, vio_parameters_reader);
+    arslam::Subscriber subscriber(nh, estimator);
     while (ros::ok()) {
       ros::spinOnce();
-	    okvis_estimator.display();
     }
-    */
     return 0;
 }
 

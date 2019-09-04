@@ -12,7 +12,6 @@ find_package(catkin REQUIRED COMPONENTS
     geometry_msgs
     roscpp
     sensor_msgs
-    image_transport
     cv_bridge
     )
 
@@ -47,8 +46,6 @@ include_directories(
     ar_slam/base/include
     ar_slam/common/include
     ar_slam/frontend/include
-    ar_slam/interface/include
-    ar_slam/initial/include
 )                        
 
 # compile the actual application
@@ -63,4 +60,5 @@ ${catkin_LIBRARIES}
 ${GLOG_LIBRARIES}
 ${OpenCV_LIBS}
 arslam_common
+arslam_estimator
 ) 

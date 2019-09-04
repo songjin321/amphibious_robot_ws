@@ -9,6 +9,8 @@
  * 
  */
 #include <ros/ros.h>
+#include <Eigen/Geometry>
+#include <arslam/Time.hpp>
 namespace arslam
 {
 class Publisher
@@ -19,6 +21,15 @@ public:
    * @param nh The ROS node handle for publishing.
    */
   Publisher(ros::NodeHandle& nh);
+
+    /**
+   * @brief Set and publish pose.
+   * @remark This can be registered with the VioInterface.
+   * @param t     Timestamp of pose.
+   * @param T_WS  The pose.
+   */
+  void publishStateAsCallback(const arslam::Time& t,
+                              const Eigen::Isometry3d& T_WB);
 private:
     ros::NodeHandle nh_;
 };
