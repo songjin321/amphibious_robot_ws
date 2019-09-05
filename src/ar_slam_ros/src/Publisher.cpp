@@ -17,4 +17,10 @@ Publisher::Publisher(ros::NodeHandle& nh)
 {
 }
 
+void Publisher::publishStateAsCallback(const arslam::Time& t,
+                            const Eigen::Isometry3d& T_WB)
+{
+                                
+}
+
 }
