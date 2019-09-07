@@ -12,6 +12,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/core/core.hpp>
 #include "arslam/Time.hpp"
+#include <glog/logging.h>
 namespace arslam
 {
     Subscriber::Subscriber(ros::NodeHandle& nh, FixlagFeatureVIO& estimator)
@@ -24,6 +25,7 @@ namespace arslam
 
     void Subscriber::imuCallback(const sensor_msgs::ImuConstPtr& imu_msg)
     {
+        DLOG(INFO) << "receive a imu, timestamp " << std::fixed << std::setprecision( 15 ) <<  convertTime2double(imu_msg->header.stamp.sec, imu_msg->header.stamp.nsec);
         p_estimator_->addImuData(
             convertTime2double(imu_msg->header.stamp.sec, imu_msg->header.stamp.nsec),
             Eigen::Vector3d(imu_msg->linear_acceleration.x, imu_msg->linear_acceleration.y,
@@ -35,27 +37,32 @@ namespace arslam
 
     void Subscriber::imageCallback(const sensor_msgs::ImageConstPtr &img_msg)
     {
-        // convert ros image to cv mat
+        DLOG(INFO) << "receive a image, timestamp:" << std::fixed << std::setprecision( 15 ) << convertTime2double(img_msg->header.stamp.sec, img_msg->header.stamp.nsec);
+        // convert ros image to cv mat, color to gray
         cv_bridge::CvImageConstPtr ptr;
-        if (img_msg->encoding == "8UC1")
+        try
         {
-            sensor_msgs::Image img;
-            img.header = img_msg->header;
-            img.height = img_msg->height;
-            img.width = img_msg->width;
-            img.is_bigendian = img_msg->is_bigendian;
-            img.step = img_msg->step;
-            img.data = img_msg->data;
-            img.encoding = "mono8";
-            ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::MONO8);
+            ptr = cv_bridge::toCvCopy(img_msg, img_msg->encoding);
         }
-        else
-            ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
-        cv::Mat image = ptr->image;
+        catch (cv_bridge::Exception &e)
+        {
+            ROS_ERROR("cv_bridge exception: %s", e.what());
+            return;
+        }
+        cv::Mat image;
+        if (ptr->encoding == "rgb8")
+            cv::cvtColor(ptr->image, image, cv::COLOR_RGB2GRAY);
+        else if (ptr->encoding == "bgr8")
+            cv::cvtColor(ptr->image, image, cv::COLOR_BGR2GRAY);
+        else if (ptr->encoding == "mono8")
+            image = ptr->image;
+        else 
+            LOG(WARNING) << "unclear image encode type";
 
         p_estimator_->addImage(
             convertTime2double(img_msg->header.stamp.sec, img_msg->header.stamp.nsec), 
             image
             );
+        
     }
 }

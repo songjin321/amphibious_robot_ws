@@ -36,7 +36,7 @@ int main(int argc, char** argv)
     arslam::VioParametersReader vio_parameters_reader(configFilename);
     arslam::VioParameters parameters;
     vio_parameters_reader.getParameters(parameters);
-    
+    DLOG(INFO) << "simga_a  = " << parameters.imu_parameters.sigma_a;
     // initialise estimator
     arslam::FixlagFeatureVIO estimator(parameters);
 
