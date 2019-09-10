@@ -25,7 +25,7 @@ namespace arslam
 
     void Subscriber::imuCallback(const sensor_msgs::ImuConstPtr& imu_msg)
     {
-        // DLOG(INFO) << "receive a imu, timestamp " << std::fixed << std::setprecision( 15 ) <<  convertTime2double(imu_msg->header.stamp.sec, imu_msg->header.stamp.nsec);
+        // DLOG(INFO) << "receive a imu, timestamp " << std::fixed << std::setprecision(15) <<  convertTime2double(imu_msg->header.stamp.sec, imu_msg->header.stamp.nsec);
         p_estimator_->addImuData(
             convertTime2double(imu_msg->header.stamp.sec, imu_msg->header.stamp.nsec),
             Eigen::Vector3d(imu_msg->linear_acceleration.x, imu_msg->linear_acceleration.y,
@@ -37,7 +37,7 @@ namespace arslam
 
     void Subscriber::imageCallback(const sensor_msgs::ImageConstPtr &img_msg)
     {
-        DLOG(INFO) << "receive a image, timestamp:" << std::fixed << std::setprecision( 15 ) << convertTime2double(img_msg->header.stamp.sec, img_msg->header.stamp.nsec);
+        // DLOG(INFO) << "receive a image, timestamp:" << std::fixed << std::setprecision(15) << convertTime2double(img_msg->header.stamp.sec, img_msg->header.stamp.nsec);
         // convert ros image to cv mat, color to gray
         cv_bridge::CvImageConstPtr ptr;
         try

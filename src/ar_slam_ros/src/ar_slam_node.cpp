@@ -26,17 +26,19 @@ int main(int argc, char** argv)
     // initialise logging
     google::InitGoogleLogging(argv[0]);
     FLAGS_stderrthreshold = 0; // INFO: 0, WARNING: 1, ERROR: 2, FATAL: 3
-
+    FLAGS_colorlogtostderr = 1; // 设置带颜色输出
     // read configuration file
     std::string configFilename;
     if(!nh.getParam("config_filename",configFilename)) {
         LOG(ERROR) << "Please specify filename of configuration!";
         return -1;
     }
+    DLOG(INFO) << "config file name = " << configFilename;
     arslam::VioParametersReader vio_parameters_reader(configFilename);
     arslam::VioParameters parameters;
-    vio_parameters_reader.getParameters(parameters);
-    DLOG(INFO) << "simga_a  = " << parameters.imu_parameters.sigma_a;
+    if(!vio_parameters_reader.getParameters(parameters))
+      LOG(ERROR) << "read vio parameters error! ";
+    DLOG(INFO) << "sigma_bg  = " << parameters.imu_parameters.sigma_bg;
     // initialise estimator
     arslam::FixlagFeatureVIO estimator(parameters);
 
