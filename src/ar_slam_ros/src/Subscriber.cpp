@@ -27,7 +27,7 @@ namespace arslam
     {
         // DLOG(INFO) << "receive a imu, timestamp " << std::fixed << std::setprecision(15) <<  convertTime2double(imu_msg->header.stamp.sec, imu_msg->header.stamp.nsec);
         p_estimator_->addImuData(
-            convertTime2double(imu_msg->header.stamp.sec, imu_msg->header.stamp.nsec),
+            imu_msg->header.stamp.toSec(),
             Eigen::Vector3d(imu_msg->linear_acceleration.x, imu_msg->linear_acceleration.y,
                             imu_msg->linear_acceleration.z),
             Eigen::Vector3d(imu_msg->angular_velocity.x, imu_msg->angular_velocity.y,
@@ -60,7 +60,7 @@ namespace arslam
             LOG(WARNING) << "unclear image encode type";
 
         p_estimator_->addImage(
-            convertTime2double(img_msg->header.stamp.sec, img_msg->header.stamp.nsec), 
+            img_msg->header.stamp.toSec(),
             image
             );
         
