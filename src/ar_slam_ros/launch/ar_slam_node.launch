@@ -1,7 +1,0 @@
-<launch>
-    <node name="ar_slam_node" pkg="ar_slam_ros" type="ar_slam_node" output="screen">
-        <param name="config_filename" value="$(find ar_slam_ros)/ar_slam/config/demo_d435i.yaml" />
-        <remap from="/imu" to="/camera/imu" />
-        <remap from="/image" to="/camera/color/image_raw" />
-    </node>
-</launch>
