@@ -12,6 +12,9 @@
 #include "parameters.h"
 #include "utility/visualization.h"
 
+#include "camodocal/camera_models/CameraFactory.h"
+#include "camodocal/camera_models/CataCamera.h"
+#include "camodocal/camera_models/PinholeCamera.h"
 
 Estimator estimator;
 
@@ -21,7 +24,7 @@ queue<sensor_msgs::ImuConstPtr> imu_buf;
 queue<sensor_msgs::PointCloudConstPtr> feature_buf;
 queue<sensor_msgs::PointCloudConstPtr> relo_buf;
 int sum_of_wait = 0;
-
+int id_factory = 0;
 std::mutex m_buf;
 std::mutex m_state;
 std::mutex i_buf;
@@ -135,6 +138,158 @@ getMeasurements()
     return measurements;
 }
 
+ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
+{
+    // convert ros image to cv mat, color to gray
+    cv_bridge::CvImageConstPtr ptr;
+    try
+    {
+        ptr = cv_bridge::toCvCopy(img_msg, img_msg->encoding);
+    }
+    catch (cv_bridge::Exception &e)
+    {
+        ROS_ERROR("cv_bridge exception: %s", e.what());
+        return;
+    }
+    cv::Mat image;
+    if (ptr->encoding == "rgb8")
+        cv::cvtColor(ptr->image, image, cv::COLOR_RGB2GRAY);
+    else if (ptr->encoding == "bgr8")
+        cv::cvtColor(ptr->image, image, cv::COLOR_BGR2GRAY);
+    else if (ptr->encoding == "mono8")
+        image = ptr->image;
+    else 
+        LOG(WARNING) << "unclear image encode type";
+
+    // 使用ORB检测特征点和描述子
+    cv::FlannBasedMatcher matcher_flann;
+    std::vector<cv::DMatch> matches;
+    int num_of_features = 500;   // number of features
+    double scale_factor = 1.2;   // scale in image pyramid
+    int level_pyramid = 4;     // number of pyramid levels
+    float match_ratio = 2.0;     // ratio for selecting  good matches
+    cv::Ptr<cv::ORB> feature_detector = cv::ORB::create(num_of_features, scale_factor, level_pyramid);
+    std::vector<cv::KeyPoint>   keypoints;     // keypoints in current frame
+    cv::Mat                     descriptors;   // descriptor in current frame 
+    feature_detector->detect(image, keypoints);
+    feature_detector->compute(image, keypoints, descriptors);
+
+    // 对特征点位置使用内参进行修正
+    camodocal::CameraPtr m_camera = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(CAMERA_NAME);
+    std::vector<cv::Point2f> keysUn;
+    for (size_t i = 0; i < keypoints.size(); i++)
+    {
+        Eigen::Vector2d a(keypoints[i].pt.x, keypoints[i].pt.y);
+        Eigen::Vector3d b;
+        m_camera->liftProjective(a, b);
+        keysUn.push_back(cv::Point2f(b.x() / b.z(), b.y() / b.z()));
+        //printf("cur pts id %d %f %f", ids[i], cur_un_pts[i].x, cur_un_pts[i].y);
+    }
+
+    // 对滑动窗内所有的特征进行匹配，匹配上的设置为目标点的id，没匹配上的新建id
+    // 如何删除误匹配，使用PnP求解的Ransca
+    // 是否需要通过视角减少搜索范围
+    cv::Mat desp_map;
+    vector<int> feature_ids;
+    if (!estimator.f_manager.feature.empty())
+    {
+        for ( auto& feature : estimator.f_manager.feature)
+        {
+            desp_map.push_back(feature.descriptor);
+            feature_ids.push_back(feature.feature_id);
+        }
+
+        matcher_flann.match(desp_map, descriptors, matches);
+    }
+    // select the best matches
+    float min_dis = std::min_element (
+                        matches.begin(), matches.end(),
+                        [] ( const cv::DMatch& m1, const cv::DMatch& m2 )
+    {
+        return m1.distance < m2.distance;
+    } )->distance;
+
+    unordered_map<int, int> index_id;
+    for ( cv::DMatch& m : matches )
+    {
+        if ( m.distance < max<float> ( min_dis*match_ratio, 30.0 ) )
+        {
+            index_id.insert({m.trainIdx, 
+            feature_ids[m.queryIdx]});
+        }
+    }
+    cout<<"good matches: "<<index_id.size() <<endl;
+
+    // 构建sensor_msgs::PointCloudConstPtr
+    sensor_msgs::PointCloudPtr feature_points(new sensor_msgs::PointCloud);
+    sensor_msgs::ChannelFloat32 id_of_point;
+    sensor_msgs::ChannelFloat32 u_of_point;
+    sensor_msgs::ChannelFloat32 v_of_point;
+    sensor_msgs::ChannelFloat32 velocity_x_of_point;
+    sensor_msgs::ChannelFloat32 velocity_y_of_point;
+
+    feature_points->header = img_msg->header;
+    feature_points->header.frame_id = "world";
+
+    for (size_t i=0; i < keypoints.size(); i++)
+    {
+        geometry_msgs::Point32 p;
+        p.x = keysUn[i].x;
+        p.y = keysUn[i].y;
+        p.z = 1;
+
+        feature_points->points.push_back(p);
+        auto iter = index_id.find(i);
+        if (iter == index_id.end())
+            id_of_point.values.push_back(id_factory++);
+        else
+            id_of_point.values.push_back(iter->second);
+        u_of_point.values.push_back(keypoints[i].pt.x);
+        v_of_point.values.push_back(keypoints[i].pt.y);
+        velocity_x_of_point.values.push_back(0.0);
+        velocity_y_of_point.values.push_back(0.0);
+    }
+    feature_points->channels.push_back(id_of_point);
+    feature_points->channels.push_back(u_of_point);
+    feature_points->channels.push_back(v_of_point);
+    feature_points->channels.push_back(velocity_x_of_point);
+    feature_points->channels.push_back(velocity_y_of_point);
+    ROS_DEBUG("publish %f, at %f", feature_points->header.stamp.toSec(), ros::Time::now().toSec());
+
+    #ifdef SHOW_ORB_IMAGE
+    if (true)
+    {
+        ptr = cv_bridge::cvtColor(ptr, sensor_msgs::image_encodings::BGR8);
+        //cv::Mat stereo_img(ROW * NUM_OF_CAM, COL, CV_8UC3);
+        cv::Mat stereo_img = ptr->image;
+
+        for (int i = 0; i < NUM_OF_CAM; i++)
+        {
+            cv::Mat tmp_img = stereo_img.rowRange(i * ROW, (i + 1) * ROW);
+            cv::cvtColor(show_img, tmp_img, CV_GRAY2RGB);
+
+            for (unsigned int j = 0; j < trackerData[i].cur_pts.size(); j++)
+            {
+                double len = std::min(1.0, 1.0 * trackerData[i].track_cnt[j] / WINDOW_SIZE);
+                cv::circle(tmp_img, trackerData[i].cur_pts[j], 2, cv::Scalar(255 * (1 - len), 0, 255 * len), 2);
+            }
+        }
+        pub_match.publish(ptr->toImageMsg());
+    }
+    #endif
+    // 插入到消息队列中
+    if (!init_feature)
+    {
+        //skip the first detected feature, which doesn't contain optical flow speed
+        init_feature = 1;
+        return;
+    }
+    m_buf.lock();
+    feature_buf.push(feature_points);
+    m_buf.unlock();
+    con.notify_one();
+}
+
 void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 {
     if (imu_msg->header.stamp.toSec() <= last_imu_t)
@@ -164,6 +319,7 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 
 void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
 {
+#ifdef _OPTITRACK_
     if (!init_feature)
     {
         //skip the first detected feature, which doesn't contain optical flow speed
@@ -174,6 +330,7 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
     feature_buf.push(feature_msg);
     m_buf.unlock();
     con.notify_one();
+#endif
 }
 
 void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
@@ -356,6 +513,7 @@ int main(int argc, char **argv)
     ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
     ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
     ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
+    ros::Subscriber sub_raw_image = n.subscribe(IMAGE_TOPIC, 100, img_callback);
 
     std::thread measurement_process{process};
     ros::spin();

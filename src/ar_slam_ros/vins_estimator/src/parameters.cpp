@@ -20,6 +20,8 @@ int ROLLING_SHUTTER;
 std::string EX_CALIB_RESULT_PATH;
 std::string VINS_RESULT_PATH;
 std::string IMU_TOPIC;
+std::string IMAGE_TOPIC;
+std::string CAMERA_NAME;
 double ROW, COL;
 double TD, TR;
 
@@ -50,6 +52,7 @@ void readParameters(ros::NodeHandle &n)
     }
 
     fsSettings["imu_topic"] >> IMU_TOPIC;
+    fsSettings["image_topic"] >> IMAGE_TOPIC;
 
     SOLVER_TIME = fsSettings["max_solver_time"];
     NUM_ITERATIONS = fsSettings["max_num_iterations"];
@@ -74,6 +77,7 @@ void readParameters(ros::NodeHandle &n)
     G.z() = fsSettings["g_norm"];
     ROW = fsSettings["image_height"];
     COL = fsSettings["image_width"];
+    CAMERA_NAME = config_file;
     ROS_INFO("ROW: %f COL: %f ", ROW, COL);
 
     ESTIMATE_EXTRINSIC = fsSettings["estimate_extrinsic"];

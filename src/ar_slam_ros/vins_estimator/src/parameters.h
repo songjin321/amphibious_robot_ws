@@ -13,7 +13,7 @@ const int WINDOW_SIZE = 10;
 const int NUM_OF_CAM = 1;
 const int NUM_OF_F = 1000;
 //#define UNIT_SPHERE_ERROR
-
+//#define _OPTITRACK_
 extern double INIT_DEPTH;
 extern double MIN_PARALLAX;
 extern int ESTIMATE_EXTRINSIC;
@@ -32,6 +32,8 @@ extern int NUM_ITERATIONS;
 extern std::string EX_CALIB_RESULT_PATH;
 extern std::string VINS_RESULT_PATH;
 extern std::string IMU_TOPIC;
+extern std::string IMAGE_TOPIC;
+extern std::string CAMERA_NAME;
 extern double TD;
 extern double TR;
 extern int ESTIMATE_TD;
