@@ -15,13 +15,14 @@
 #include "camodocal/camera_models/CameraFactory.h"
 #include "camodocal/camera_models/CataCamera.h"
 #include "camodocal/camera_models/PinholeCamera.h"
-
+#include "frame.hpp"
 Estimator estimator;
 
 std::condition_variable con;
 double current_time = -1;
 queue<sensor_msgs::ImuConstPtr> imu_buf;
 queue<sensor_msgs::PointCloudConstPtr> feature_buf;
+queue<Frame::Ptr> frame_buf;
 queue<sensor_msgs::PointCloudConstPtr> relo_buf;
 int sum_of_wait = 0;
 int id_factory = 0;
@@ -98,31 +99,31 @@ void update()
 
 }
 
-std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>>
+std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, Frame::Ptr>>
 getMeasurements()
 {
-    std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>> measurements;
+    std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, Frame::Ptr>> measurements;
 
     while (true)
     {
-        if (imu_buf.empty() || feature_buf.empty())
+        if (imu_buf.empty() || frame_buf.empty())
             return measurements;
 
-        if (!(imu_buf.back()->header.stamp.toSec() > feature_buf.front()->header.stamp.toSec() + estimator.td))
+        if (!(imu_buf.back()->header.stamp.toSec() > frame_buf.front()->header.stamp.toSec() + estimator.td))
         {
             //ROS_WARN("wait for imu, only should happen at the beginning");
             sum_of_wait++;
             return measurements;
         }
 
-        if (!(imu_buf.front()->header.stamp.toSec() < feature_buf.front()->header.stamp.toSec() + estimator.td))
+        if (!(imu_buf.front()->header.stamp.toSec() < frame_buf.front()->header.stamp.toSec() + estimator.td))
         {
             ROS_WARN("throw img, only should happen at the beginning");
-            feature_buf.pop();
+            frame_buf.pop();
             continue;
         }
-        sensor_msgs::PointCloudConstPtr img_msg = feature_buf.front();
-        feature_buf.pop();
+        Frame::Ptr img_msg = frame_buf.front();
+        frame_buf.pop();
 
         std::vector<sensor_msgs::ImuConstPtr> IMUs;
         while (imu_buf.front()->header.stamp.toSec() < img_msg->header.stamp.toSec() + estimator.td)
@@ -162,18 +163,16 @@ getMeasurements()
         LOG(WARNING) << "unclear image encode type";
 
     // 使用ORB检测特征点和描述子
-    cv::FlannBasedMatcher matcher_flann;
-    std::vector<cv::DMatch> matches;
-    int num_of_features = 500;   // number of features
+    int num_of_features = 200;   // number of features
     double scale_factor = 1.2;   // scale in image pyramid
     int level_pyramid = 4;     // number of pyramid levels
-    float match_ratio = 2.0;     // ratio for selecting  good matches
     cv::Ptr<cv::ORB> feature_detector = cv::ORB::create(num_of_features, scale_factor, level_pyramid);
     std::vector<cv::KeyPoint>   keypoints;     // keypoints in current frame
     cv::Mat                     descriptors;   // descriptor in current frame 
     feature_detector->detect(image, keypoints);
     feature_detector->compute(image, keypoints, descriptors);
-
+    cout << "feature number = " << keypoints.size() << endl;
+ 
     // 对特征点位置使用内参进行修正
     camodocal::CameraPtr m_camera = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(CAMERA_NAME);
     std::vector<cv::Point2f> keysUn;
@@ -186,75 +185,11 @@ getMeasurements()
         //printf("cur pts id %d %f %f", ids[i], cur_un_pts[i].x, cur_un_pts[i].y);
     }
 
-    // 对滑动窗内所有的特征进行匹配，匹配上的设置为目标点的id，没匹配上的新建id
-    // 如何删除误匹配，使用PnP求解的Ransca
-    // 是否需要通过视角减少搜索范围
-    cv::Mat desp_map;
-    vector<int> feature_ids;
-    if (!estimator.f_manager.feature.empty())
-    {
-        for ( auto& feature : estimator.f_manager.feature)
-        {
-            desp_map.push_back(feature.descriptor);
-            feature_ids.push_back(feature.feature_id);
-        }
-
-        matcher_flann.match(desp_map, descriptors, matches);
-    }
-    // select the best matches
-    float min_dis = std::min_element (
-                        matches.begin(), matches.end(),
-                        [] ( const cv::DMatch& m1, const cv::DMatch& m2 )
-    {
-        return m1.distance < m2.distance;
-    } )->distance;
-
-    unordered_map<int, int> index_id;
-    for ( cv::DMatch& m : matches )
-    {
-        if ( m.distance < max<float> ( min_dis*match_ratio, 30.0 ) )
-        {
-            index_id.insert({m.trainIdx, 
-            feature_ids[m.queryIdx]});
-        }
-    }
-    cout<<"good matches: "<<index_id.size() <<endl;
-
-    // 构建sensor_msgs::PointCloudConstPtr
-    sensor_msgs::PointCloudPtr feature_points(new sensor_msgs::PointCloud);
-    sensor_msgs::ChannelFloat32 id_of_point;
-    sensor_msgs::ChannelFloat32 u_of_point;
-    sensor_msgs::ChannelFloat32 v_of_point;
-    sensor_msgs::ChannelFloat32 velocity_x_of_point;
-    sensor_msgs::ChannelFloat32 velocity_y_of_point;
-
-    feature_points->header = img_msg->header;
-    feature_points->header.frame_id = "world";
-
-    for (size_t i=0; i < keypoints.size(); i++)
-    {
-        geometry_msgs::Point32 p;
-        p.x = keysUn[i].x;
-        p.y = keysUn[i].y;
-        p.z = 1;
-
-        feature_points->points.push_back(p);
-        auto iter = index_id.find(i);
-        if (iter == index_id.end())
-            id_of_point.values.push_back(id_factory++);
-        else
-            id_of_point.values.push_back(iter->second);
-        u_of_point.values.push_back(keypoints[i].pt.x);
-        v_of_point.values.push_back(keypoints[i].pt.y);
-        velocity_x_of_point.values.push_back(0.0);
-        velocity_y_of_point.values.push_back(0.0);
-    }
-    feature_points->channels.push_back(id_of_point);
-    feature_points->channels.push_back(u_of_point);
-    feature_points->channels.push_back(v_of_point);
-    feature_points->channels.push_back(velocity_x_of_point);
-    feature_points->channels.push_back(velocity_y_of_point);
-    ROS_DEBUG("publish %f, at %f", feature_points->header.stamp.toSec(), ros::Time::now().toSec());
+    Frame::Ptr frame = make_shared<Frame>();
+    frame->descriptors = descriptors;
+    frame->keypoints = keypoints;
+    frame->keysUn = keysUn;
+    frame->header = img_msg->header;
 
     #ifdef SHOW_ORB_IMAGE
     if (true)
@@ -285,7 +220,7 @@ getMeasurements()
         return;
     }
     m_buf.lock();
-    feature_buf.push(feature_points);
+    frame_buf.push(frame);
     m_buf.unlock();
     con.notify_one();
 }
@@ -367,7 +302,7 @@ void process()
 {
     while (true)
     {
-        std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>> measurements;
+        std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, Frame::Ptr>> measurements;
         std::unique_lock<std::mutex> lk(m_buf);
         con.wait(lk, [&]
                  {
@@ -450,25 +385,8 @@ void process()
             ROS_DEBUG("processing vision data with stamp %f \n", img_msg->header.stamp.toSec());
 
             TicToc t_s;
-            map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> image;
-            for (unsigned int i = 0; i < img_msg->points.size(); i++)
-            {
-                int v = img_msg->channels[0].values[i] + 0.5;
-                int feature_id = v / NUM_OF_CAM;
-                int camera_id = v % NUM_OF_CAM;
-                double x = img_msg->points[i].x;
-                double y = img_msg->points[i].y;
-                double z = img_msg->points[i].z;
-                double p_u = img_msg->channels[1].values[i];
-                double p_v = img_msg->channels[2].values[i];
-                double velocity_x = img_msg->channels[3].values[i];
-                double velocity_y = img_msg->channels[4].values[i];
-                ROS_ASSERT(z == 1);
-                Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
-                xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
-                image[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
-            }
-            estimator.processImage(image, img_msg->header);
+
+            estimator.processImage(img_msg, img_msg->header);
 
             double whole_t = t_s.toc();
             printStatistics(estimator, whole_t);
@@ -499,7 +417,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "vins_estimator");
     ros::NodeHandle n("~");
-    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
+    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug);
     readParameters(n);
     estimator.setParameter();
 #ifdef EIGEN_DONT_PARALLELIZE

@@ -6,7 +6,7 @@ int FeaturePerId::endFrame()
 }
 
 FeatureManager::FeatureManager(Matrix3d _Rs[])
-    : Rs(_Rs)
+    : Rs(_Rs), matcher_flann ( new cv::flann::LshIndexParams ( 5,10,2 ) )
 {
     for (int i = 0; i < NUM_OF_CAM; i++)
         ric[i].setIdentity();
@@ -42,9 +42,73 @@ int FeatureManager::getFeatureCount()
 }
 
 
-bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, double td)
+bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, Frame::Ptr frame, double td)
 {
     // 这里需要将特征点和地图进行匹配确定每个特征点的id
+    // 对滑动窗内所有的特征进行匹配，匹配上的设置为目标点的id，没匹配上的新建id
+    // 如何删除误匹配，使用PnP求解的Ransca
+    // 是否需要通过视角减少搜索范围
+    cv::Mat desp_map;
+    vector<int> feature_ids;
+    std::vector<cv::DMatch> matches;
+    unordered_map<int, int> index_id;
+    unordered_map<int, int> id_index;
+
+    if (!feature.empty())
+    {
+        for ( auto& f : feature)
+        {
+            desp_map.push_back(f.descriptor);
+            feature_ids.push_back(f.feature_id);
+        }
+        cout << "desp_map: " << desp_map.rows <<" " <<desp_map.cols << endl;
+        cout << "frame->descriptors: " << frame->descriptors.rows<<" " << frame->descriptors.cols << endl;
+        matcher_flann.match(desp_map, frame->descriptors, matches);
+        cout << "match success! " << endl; 
+        // select the best matches
+        float min_dis = std::min_element (
+                            matches.begin(), matches.end(),
+                            [] ( const cv::DMatch& m1, const cv::DMatch& m2 )
+        {
+            return m1.distance < m2.distance;
+        } )->distance;
+
+            float match_ratio = 2.0;     // ratio for selecting  good matches
+        for ( cv::DMatch& m : matches )
+        {
+            if ( m.distance < max<float> ( min_dis*match_ratio, 30.0 ) )
+            {
+                index_id.insert({m.trainIdx, 
+                feature_ids[m.queryIdx]});
+            }
+        }
+    }
+    cout<<"good matches: "<<index_id.size() <<endl;
+
+    // from frame to construct image;
+    for (int i = 0; i < static_cast<int>(frame->keypoints.size()); i++)
+    {
+        auto iter = index_id.find(i);
+        int feature_id;
+        if (iter != index_id.end())
+            feature_id = iter->second;
+        else
+            feature_id = id_factory++;
+        int camera_id = 0;
+        double x = frame->keysUn[i].x;
+        double y = frame->keysUn[i].y;
+        double z = 1;
+        double p_u = frame->keypoints[i].pt.x;
+        double p_v = frame->keypoints[i].pt.y;
+        double velocity_x = 0;
+        double velocity_y = 0;
+        ROS_ASSERT(z == 1);
+        Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
+        xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
+        image[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
+        id_index.insert({feature_id, i});
+    }
+
     ROS_DEBUG("input feature: %d", (int)image.size());
     ROS_DEBUG("num of feature: %d", getFeatureCount());
     double parallax_sum = 0;
@@ -62,7 +126,9 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vec
 
         if (it == feature.end())
         {
-            feature.push_back(FeaturePerId(feature_id, frame_count));
+            FeaturePerId feature_per_id = FeaturePerId(feature_id, frame_count);
+            feature_per_id.descriptor = frame->descriptors.row(id_index[feature_id]).clone();
+            feature.push_back(feature_per_id);
             feature.back().feature_per_frame.push_back(f_per_fra);
         }
         else if (it->feature_id == feature_id)

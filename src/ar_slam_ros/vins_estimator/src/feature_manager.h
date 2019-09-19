@@ -14,7 +14,7 @@ using namespace Eigen;
 #include <ros/assert.h>
 
 #include "parameters.h"
-
+#include "frame.hpp"
 class FeaturePerFrame
 {
   public:
@@ -76,7 +76,17 @@ class FeatureManager
 
     int getFeatureCount();
 
-    bool addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, double td);
+    /**
+     * @brief 将frame和地图匹配，得到每个点的id，并将时差足够的点插入到地图中，对image进行赋值，判断是否为关键帧
+     * 
+     * @param frame_count 
+     * @param image 
+     * @param frame 
+     * @param td 
+     * @return true 
+     * @return false 
+     */
+    bool addFeatureCheckParallax(int frame_count, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, Frame::Ptr frame, double td);
     void debugShow();
     vector<pair<Vector3d, Vector3d>> getCorresponding(int frame_count_l, int frame_count_r);
 
@@ -97,6 +107,8 @@ class FeatureManager
     double compensatedParallax2(const FeaturePerId &it_per_id, int frame_count);
     const Matrix3d *Rs;
     Matrix3d ric[NUM_OF_CAM];
+    unsigned int id_factory = 0;
+    cv::FlannBasedMatcher matcher_flann;
 };
 
 #endif
