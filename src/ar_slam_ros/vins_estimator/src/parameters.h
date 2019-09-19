@@ -8,6 +8,13 @@
 #include <opencv2/core/eigen.hpp>
 #include <fstream>
 
+/** feature detector**/
+extern int num_of_features;   // number of features
+extern double scale_factor;   // scale in image pyramid
+extern int level_pyramid;     // number of pyramid levels
+extern int fIniThFAST;
+extern int fMinThFAST;
+//
 const double FOCAL_LENGTH = 460.0;
 const int WINDOW_SIZE = 10;
 const int NUM_OF_CAM = 1;

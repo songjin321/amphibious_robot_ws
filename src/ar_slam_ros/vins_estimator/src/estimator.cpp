@@ -447,6 +447,7 @@ bool Estimator::relativePose(Matrix3d &relative_R, Vector3d &relative_T, int &l)
     {
         vector<pair<Vector3d, Vector3d>> corres;
         corres = f_manager.getCorresponding(i, WINDOW_SIZE);
+        ROS_DEBUG("the corresponds between current frame and %d frame = %d", i, corres.size());
         if (corres.size() > 20)
         {
             double sum_parallax = 0;

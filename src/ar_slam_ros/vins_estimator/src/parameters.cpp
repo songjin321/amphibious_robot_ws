@@ -1,4 +1,10 @@
 #include "parameters.h"
+#include <iostream>
+int num_of_features;   // number of features
+double scale_factor;   // scale in image pyramid
+int level_pyramid;     // number of pyramid levels
+int fIniThFAST;
+int fMinThFAST;
 
 double INIT_DEPTH;
 double MIN_PARALLAX;
@@ -53,6 +59,12 @@ void readParameters(ros::NodeHandle &n)
 
     fsSettings["imu_topic"] >> IMU_TOPIC;
     fsSettings["image_topic"] >> IMAGE_TOPIC;
+    
+    num_of_features = fsSettings["number_of_features"];   // number of features
+    scale_factor = fsSettings["scale_factor"];   // number of features
+    level_pyramid = fsSettings["level_pyramid"];   // number of features
+    fIniThFAST = fsSettings["fIniThFAST"];
+    fMinThFAST = fsSettings["fMinThFAST"];
 
     SOLVER_TIME = fsSettings["max_solver_time"];
     NUM_ITERATIONS = fsSettings["max_num_iterations"];

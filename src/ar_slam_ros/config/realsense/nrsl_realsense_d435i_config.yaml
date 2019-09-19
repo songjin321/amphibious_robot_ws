@@ -80,3 +80,10 @@ rolling_shutter_tr: 0.033               # unit: s. rolling shutter read out time
 save_image: 1                   # save image in pose graph for visualization prupose; you can close this function by setting 0 
 visualize_imu_forward: 0        # output imu forward propogation to achieve low latency and high frequence results
 visualize_camera_size: 0.4      # size of camera marker in RVIZ
+
+#ORB
+number_of_features: 500
+scale_factor: 1.2
+level_pyramid: 8
+fIniThFAST: 20
+fMinThFAST: 7

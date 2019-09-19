@@ -73,7 +73,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
             return m1.distance < m2.distance;
         } )->distance;
 
-            float match_ratio = 2.0;     // ratio for selecting  good matches
+        float match_ratio = 2.0;     // ratio for selecting  good matches
         for ( cv::DMatch& m : matches )
         {
             if ( m.distance < max<float> ( min_dis*match_ratio, 30.0 ) )

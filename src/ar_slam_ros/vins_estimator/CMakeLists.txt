@@ -34,6 +34,7 @@ include_directories(
 catkin_package()
 
 add_executable(vins_estimator
+    src/ORBextractor.cpp
     src/estimator_node.cpp
     src/parameters.cpp
     src/estimator.cpp

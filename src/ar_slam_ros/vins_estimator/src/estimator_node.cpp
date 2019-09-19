@@ -16,7 +16,11 @@
 #include "camodocal/camera_models/CataCamera.h"
 #include "camodocal/camera_models/PinholeCamera.h"
 #include "frame.hpp"
+#include "ORBextractor.h"
 Estimator estimator;
+ros::Publisher pub_match;
+cv::Ptr<cv::ORB> feature_detector;
+ORB_SLAM2::ORBextractor* ORBSLAM2_feature_detector;
 
 std::condition_variable con;
 double current_time = -1;
@@ -162,17 +166,20 @@ getMeasurements()
     else 
         LOG(WARNING) << "unclear image encode type";
 
-    // 使用ORB检测特征点和描述子
-    int num_of_features = 200;   // number of features
-    double scale_factor = 1.2;   // scale in image pyramid
-    int level_pyramid = 4;     // number of pyramid levels
-    cv::Ptr<cv::ORB> feature_detector = cv::ORB::create(num_of_features, scale_factor, level_pyramid);
+
     std::vector<cv::KeyPoint>   keypoints;     // keypoints in current frame
     cv::Mat                     descriptors;   // descriptor in current frame 
-    feature_detector->detect(image, keypoints);
-    feature_detector->compute(image, keypoints, descriptors);
+    
+    // 使用Opencv ORB检测特征点和描述子
+    // feature_detector->detect(image, keypoints);
+    // feature_detector->compute(image, keypoints, descriptors);
+    
+    // 使用ORBSLAM2 检测特征点
+    (*ORBSLAM2_feature_detector)(image,cv::Mat(),keypoints,descriptors);
+
+    // 使用deep learning检测特征点
+
     cout << "feature number = " << keypoints.size() << endl;
- 
     // 对特征点位置使用内参进行修正
     camodocal::CameraPtr m_camera = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(CAMERA_NAME);
     std::vector<cv::Point2f> keysUn;
@@ -191,27 +198,12 @@ getMeasurements()
     frame->keysUn = keysUn;
     frame->header = img_msg->header;
 
-    #ifdef SHOW_ORB_IMAGE
-    if (true)
-    {
-        ptr = cv_bridge::cvtColor(ptr, sensor_msgs::image_encodings::BGR8);
-        //cv::Mat stereo_img(ROW * NUM_OF_CAM, COL, CV_8UC3);
-        cv::Mat stereo_img = ptr->image;
+    // publish orb detection image
+    ptr = cv_bridge::cvtColor(ptr, sensor_msgs::image_encodings::BGR8);
+    cv::Mat img = ptr->image;
+    drawKeypoints(img, keypoints, img, cv::Scalar(0, 0, 255), cv::DrawMatchesFlags::DRAW_OVER_OUTIMG);
+    pub_match.publish(ptr->toImageMsg());
 
-        for (int i = 0; i < NUM_OF_CAM; i++)
-        {
-            cv::Mat tmp_img = stereo_img.rowRange(i * ROW, (i + 1) * ROW);
-            cv::cvtColor(show_img, tmp_img, CV_GRAY2RGB);
-
-            for (unsigned int j = 0; j < trackerData[i].cur_pts.size(); j++)
-            {
-                double len = std::min(1.0, 1.0 * trackerData[i].track_cnt[j] / WINDOW_SIZE);
-                cv::circle(tmp_img, trackerData[i].cur_pts[j], 2, cv::Scalar(255 * (1 - len), 0, 255 * len), 2);
-            }
-        }
-        pub_match.publish(ptr->toImageMsg());
-    }
-    #endif
     // 插入到消息队列中
     if (!init_feature)
     {
@@ -420,12 +412,15 @@ int main(int argc, char **argv)
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug);
     readParameters(n);
     estimator.setParameter();
+    feature_detector= cv::ORB::create(num_of_features, scale_factor, level_pyramid);
+    ORBSLAM2_feature_detector = new ORB_SLAM2::ORBextractor(num_of_features,scale_factor,level_pyramid,fIniThFAST,fMinThFAST);
 #ifdef EIGEN_DONT_PARALLELIZE
     ROS_DEBUG("EIGEN_DONT_PARALLELIZE");
 #endif
     ROS_WARN("waiting for image and imu...");
 
     registerPub(n);
+    pub_match = n.advertise<sensor_msgs::Image>("feature_img",1000);
 
     ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
