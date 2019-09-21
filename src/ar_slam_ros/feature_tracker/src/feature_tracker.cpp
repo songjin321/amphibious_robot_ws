@@ -1,5 +1,5 @@
 #include "feature_tracker.h"
-
+#include <bitset>
 int FeatureTracker::n_id = 0;
 
 bool inBorder(const cv::Point2f &pt)
@@ -28,8 +28,16 @@ void reduceVector(vector<int> &v, vector<uchar> status)
     v.resize(j);
 }
 
+void reduceVector(cv::Mat &v, vector<uchar> status)
+{
+    int j = 0;
+    for (int i = 0; i < v.rows; i++)
+        if (status[i])
+            v.row(j++) = v.row(i).clone();
+}
 
-FeatureTracker::FeatureTracker()
+FeatureTracker::FeatureTracker():
+brief_feature_detector(64)
 {
 }
 
@@ -70,12 +78,14 @@ void FeatureTracker::setMask()
 
 void FeatureTracker::addPoints()
 {
-    for (auto &p : n_pts)
+    for (size_t i = 0; i < n_pts.size(); i++)
     {
-        forw_pts.push_back(p);
+        forw_pts.push_back(n_pts[i]);
         ids.push_back(-1);
-        track_cnt.push_back(1);
+        track_cnt.push_back(1); 
+        descriptors.push_back(n_pts_descriptors.row(i).clone());
     }
+    ROS_DEBUG("add point success!");
 }
 
 void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
@@ -111,16 +121,21 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
         vector<uchar> status;
         vector<float> err;
         cv::calcOpticalFlowPyrLK(cur_img, forw_img, cur_pts, forw_pts, status, err, cv::Size(21, 21), 3);
-
+        ROS_DEBUG("the feature number before optical tracking %d", (int)cur_pts.size());
         for (int i = 0; i < int(forw_pts.size()); i++)
+        {
             if (status[i] && !inBorder(forw_pts[i]))
                 status[i] = 0;
+        }
+
         reduceVector(prev_pts, status);
         reduceVector(cur_pts, status);
         reduceVector(forw_pts, status);
         reduceVector(ids, status);
         reduceVector(cur_un_pts, status);
         reduceVector(track_cnt, status);
+        reduceVector(descriptors, status);
+        ROS_DEBUG("the feature number after optical tracking %d", (int)forw_pts.size());
         ROS_DEBUG("temporal optical flow costs: %fms", t_o.toc());
     }
 
@@ -147,9 +162,36 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
             if (mask.size() != forw_img.size())
                 cout << "wrong size " << endl;
             cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.01, MIN_DIST, mask);
+
+            // 对n_pts计算描述子
+            std::vector<cv::KeyPoint>   keypoints;     // keypoints in current frame
+            for (size_t i = 0; i < n_pts.size(); i++)
+            {
+                cv::KeyPoint tmp;
+                tmp.pt.x = n_pts[i].x;
+                tmp.pt.y = n_pts[i].y;
+                keypoints.push_back(tmp);
+            }
+            std::vector<DVision::BRIEF::bitset> detect_brief;
+            brief_feature_detector.compute(forw_img, keypoints, detect_brief);
+            TicToc t_assign;
+            for (auto bits : detect_brief)
+            {
+                cv::Mat one_row(1, bits.size(), CV_8U);
+                for (size_t j = 0; j < bits.size(); j++)
+                {
+                    one_row.at<uchar>(0, j) = bits[j];
+                }
+                n_pts_descriptors.push_back(one_row);
+            }      
+            ROS_DEBUG("assign Feature costs: %fms", t_assign.toc());
         }
         else
+        {
             n_pts.clear();
+            n_pts_descriptors.release();
+        }
+
         ROS_DEBUG("detect feature costs: %fms", t_t.toc());
 
         ROS_DEBUG("add feature begins");
@@ -196,6 +238,7 @@ void FeatureTracker::rejectWithF()
         reduceVector(cur_un_pts, status);
         reduceVector(ids, status);
         reduceVector(track_cnt, status);
+        reduceVector(descriptors, status);
         ROS_DEBUG("FM ransac: %d -> %lu: %f", size_a, forw_pts.size(), 1.0 * forw_pts.size() / size_a);
         ROS_DEBUG("FM ransac costs: %fms", t_f.toc());
     }
@@ -224,6 +267,7 @@ void FeatureTracker::showUndistortion(const string &name)
     cv::Mat undistortedImg(ROW + 600, COL + 600, CV_8UC1, cv::Scalar(0));
     vector<Eigen::Vector2d> distortedp, undistortedp;
     for (int i = 0; i < COL; i++)
+    {
         for (int j = 0; j < ROW; j++)
         {
             Eigen::Vector2d a(i, j);
@@ -233,6 +277,7 @@ void FeatureTracker::showUndistortion(const string &name)
             undistortedp.push_back(Eigen::Vector2d(b.x() / b.z(), b.y() / b.z()));
             //printf("%f,%f->%f,%f,%f\n)\n", a.x(), a.y(), b.x(), b.y(), b.z());
         }
+    }
     for (int i = 0; i < int(undistortedp.size()); i++)
     {
         cv::Mat pp(3, 1, CV_32FC1);

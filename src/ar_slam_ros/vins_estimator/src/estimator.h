@@ -21,7 +21,7 @@
 #include <unordered_map>
 #include <queue>
 #include <opencv2/core/eigen.hpp>
-#include "frame.hpp"
+#include "feature_tracker/Feature.h"
 
 class Estimator
 {
@@ -32,7 +32,7 @@ class Estimator
 
     // interface
     void processIMU(double t, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
-    void processImage(Frame::Ptr frame, const std_msgs::Header &header);
+    void processImage(feature_tracker::FeaturePtr frame, const std_msgs::Header &header);
     void setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points, Vector3d _relo_t, Matrix3d _relo_r);
 
     // internal

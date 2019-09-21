@@ -117,7 +117,7 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
     gyr_0 = angular_velocity;
 }
 
-void Estimator::processImage(Frame::Ptr frame, const std_msgs::Header &header)
+void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::Header &header)
 {
     ROS_DEBUG("new image coming ------------------------------------------");
     ROS_DEBUG("number of feature: %d", f_manager.getFeatureCount());

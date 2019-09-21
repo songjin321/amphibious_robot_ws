@@ -6,7 +6,7 @@
 #include <std_msgs/Bool.h>
 #include <cv_bridge/cv_bridge.h>
 #include <message_filters/subscriber.h>
-
+#include "feature_tracker/Feature.h"
 #include "feature_tracker.h"
 
 #define SHOW_UNDISTORTION 0
@@ -113,6 +113,10 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
    if (PUB_THIS_FRAME)
    {
         pub_count++;
+        // 发布的feature包括每个点的信息和对应的描述子
+        feature_tracker::Feature feature; 
+        cv_bridge::CvImage cvimage_descriptor;
+        cvimage_descriptor.encoding = "mono8";
         sensor_msgs::PointCloudPtr feature_points(new sensor_msgs::PointCloud);
         sensor_msgs::ChannelFloat32 id_of_point;
         sensor_msgs::ChannelFloat32 u_of_point;
@@ -120,8 +124,8 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         sensor_msgs::ChannelFloat32 velocity_x_of_point;
         sensor_msgs::ChannelFloat32 velocity_y_of_point;
 
-        feature_points->header = img_msg->header;
-        feature_points->header.frame_id = "world";
+        feature.header = img_msg->header;
+        feature.header.frame_id = "world";
 
         vector<set<int>> hash_ids(NUM_OF_CAM);
         for (int i = 0; i < NUM_OF_CAM; i++)
@@ -130,6 +134,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
             auto &cur_pts = trackerData[i].cur_pts;
             auto &ids = trackerData[i].ids;
             auto &pts_velocity = trackerData[i].pts_velocity;
+            auto &descriptor = trackerData[i].descriptors;
             for (unsigned int j = 0; j < ids.size(); j++)
             {
                 if (trackerData[i].track_cnt[j] > 1)
@@ -147,6 +152,8 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
                     v_of_point.values.push_back(cur_pts[j].y);
                     velocity_x_of_point.values.push_back(pts_velocity[j].x);
                     velocity_y_of_point.values.push_back(pts_velocity[j].y);
+                    // 把32位的描述子也发布出去
+                    cvimage_descriptor.image.push_back(descriptor.row(j).clone());
                 }
             }
         }
@@ -155,14 +162,16 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         feature_points->channels.push_back(v_of_point);
         feature_points->channels.push_back(velocity_x_of_point);
         feature_points->channels.push_back(velocity_y_of_point);
-        ROS_DEBUG("publish %f, at %f", feature_points->header.stamp.toSec(), ros::Time::now().toSec());
+        feature.keypoints = *feature_points;
+        feature.descriptors = *cvimage_descriptor.toImageMsg();
+        ROS_DEBUG("publish %f, the number of feature point = %d, at %f", feature_points->header.stamp.toSec(), (int)id_of_point.values.size(), ros::Time::now().toSec());
         // skip the first image; since no optical speed on frist image
         if (!init_pub)
         {
             init_pub = 1;
         }
         else
-            pub_img.publish(feature_points);
+            pub_img.publish(feature);
 
         if (SHOW_TRACK)
         {
@@ -209,7 +218,7 @@ int main(int argc, char **argv)
     ros::NodeHandle n("~");
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
     readParameters(n);
-
+    ROS_DEBUG("Hello feature tracker!");
     for (int i = 0; i < NUM_OF_CAM; i++)
         trackerData[i].readIntrinsicParameter(CAM_NAMES[i]);
 
@@ -230,7 +239,7 @@ int main(int argc, char **argv)
 
     ros::Subscriber sub_img = n.subscribe(IMAGE_TOPIC, 100, img_callback);
 
-    pub_img = n.advertise<sensor_msgs::PointCloud>("feature", 1000);
+    pub_img = n.advertise<feature_tracker::Feature>("feature", 1000);
     pub_match = n.advertise<sensor_msgs::Image>("feature_img",1000);
     pub_restart = n.advertise<std_msgs::Bool>("restart",1000);
     /*

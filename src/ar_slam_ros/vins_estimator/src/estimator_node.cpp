@@ -17,6 +17,7 @@
 #include "camodocal/camera_models/PinholeCamera.h"
 #include "frame.hpp"
 #include "ORBextractor.h"
+#include "feature_tracker/Feature.h"
 Estimator estimator;
 ros::Publisher pub_match;
 cv::Ptr<cv::ORB> feature_detector;
@@ -25,7 +26,7 @@ ORB_SLAM2::ORBextractor* ORBSLAM2_feature_detector;
 std::condition_variable con;
 double current_time = -1;
 queue<sensor_msgs::ImuConstPtr> imu_buf;
-queue<sensor_msgs::PointCloudConstPtr> feature_buf;
+queue<feature_tracker::FeaturePtr> feature_buf;
 queue<Frame::Ptr> frame_buf;
 queue<sensor_msgs::PointCloudConstPtr> relo_buf;
 int sum_of_wait = 0;
@@ -103,31 +104,31 @@ void update()
 
 }
 
-std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, Frame::Ptr>>
+std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, feature_tracker::FeaturePtr>>
 getMeasurements()
 {
-    std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, Frame::Ptr>> measurements;
+    std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, feature_tracker::FeaturePtr>> measurements;
 
     while (true)
     {
-        if (imu_buf.empty() || frame_buf.empty())
+        if (imu_buf.empty() || feature_buf.empty())
             return measurements;
 
-        if (!(imu_buf.back()->header.stamp.toSec() > frame_buf.front()->header.stamp.toSec() + estimator.td))
+        if (!(imu_buf.back()->header.stamp.toSec() > feature_buf.front()->header.stamp.toSec() + estimator.td))
         {
             //ROS_WARN("wait for imu, only should happen at the beginning");
             sum_of_wait++;
             return measurements;
         }
 
-        if (!(imu_buf.front()->header.stamp.toSec() < frame_buf.front()->header.stamp.toSec() + estimator.td))
+        if (!(imu_buf.front()->header.stamp.toSec() < feature_buf.front()->header.stamp.toSec() + estimator.td))
         {
             ROS_WARN("throw img, only should happen at the beginning");
-            frame_buf.pop();
+            feature_buf.pop();
             continue;
         }
-        Frame::Ptr img_msg = frame_buf.front();
-        frame_buf.pop();
+        feature_tracker::FeaturePtr img_msg = feature_buf.front();
+        feature_buf.pop();
 
         std::vector<sensor_msgs::ImuConstPtr> IMUs;
         while (imu_buf.front()->header.stamp.toSec() < img_msg->header.stamp.toSec() + estimator.td)
@@ -244,9 +245,9 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 }
 
 
-void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
+void feature_callback(const feature_tracker::FeaturePtr &feature_msg)
 {
-#ifdef _OPTITRACK_
+
     if (!init_feature)
     {
         //skip the first detected feature, which doesn't contain optical flow speed
@@ -257,7 +258,6 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
     feature_buf.push(feature_msg);
     m_buf.unlock();
     con.notify_one();
-#endif
 }
 
 void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
@@ -294,7 +294,7 @@ void process()
 {
     while (true)
     {
-        std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, Frame::Ptr>> measurements;
+        std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, feature_tracker::FeaturePtr>> measurements;
         std::unique_lock<std::mutex> lk(m_buf);
         con.wait(lk, [&]
                  {
@@ -412,8 +412,7 @@ int main(int argc, char **argv)
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug);
     readParameters(n);
     estimator.setParameter();
-    feature_detector= cv::ORB::create(num_of_features, scale_factor, level_pyramid);
-    ORBSLAM2_feature_detector = new ORB_SLAM2::ORBextractor(num_of_features,scale_factor,level_pyramid,fIniThFAST,fMinThFAST);
+    
 #ifdef EIGEN_DONT_PARALLELIZE
     ROS_DEBUG("EIGEN_DONT_PARALLELIZE");
 #endif
@@ -426,7 +425,7 @@ int main(int argc, char **argv)
     ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
     ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
     ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
-    ros::Subscriber sub_raw_image = n.subscribe(IMAGE_TOPIC, 100, img_callback);
+    // ros::Subscriber sub_raw_image = n.subscribe(IMAGE_TOPIC, 100, img_callback);
 
     std::thread measurement_process{process};
     ros::spin();

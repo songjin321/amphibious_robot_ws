@@ -1,12 +1,12 @@
 #include "feature_manager.h"
-
+#include <cv_bridge/cv_bridge.h>
 int FeaturePerId::endFrame()
 {
     return start_frame + feature_per_frame.size() - 1;
 }
 
 FeatureManager::FeatureManager(Matrix3d _Rs[])
-    : Rs(_Rs), matcher_flann ( new cv::flann::LshIndexParams ( 5,10,2 ) )
+    : Rs(_Rs), matcher_flann(new cv::flann::LshIndexParams(5, 10, 2))
 {
     for (int i = 0; i < NUM_OF_CAM; i++)
         ric[i].setIdentity();
@@ -41,102 +41,128 @@ int FeatureManager::getFeatureCount()
     return cnt;
 }
 
-
-bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, Frame::Ptr frame, double td)
+bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, feature_tracker::FeaturePtr frame, double td)
 {
-    // 这里需要将特征点和地图进行匹配确定每个特征点的id
-    // 对滑动窗内所有的特征进行匹配，匹配上的设置为目标点的id，没匹配上的新建id
-    // 如何删除误匹配，使用PnP求解的Ransca
-    // 是否需要通过视角减少搜索范围
-    cv::Mat desp_map;
-    vector<int> feature_ids;
-    std::vector<cv::DMatch> matches;
-    unordered_map<int, int> index_id;
-    unordered_map<int, int> id_index;
-
-    if (!feature.empty())
-    {
-        for ( auto& f : feature)
-        {
-            desp_map.push_back(f.descriptor);
-            feature_ids.push_back(f.feature_id);
-        }
-        cout << "desp_map: " << desp_map.rows <<" " <<desp_map.cols << endl;
-        cout << "frame->descriptors: " << frame->descriptors.rows<<" " << frame->descriptors.cols << endl;
-        matcher_flann.match(desp_map, frame->descriptors, matches);
-        cout << "match success! " << endl; 
-        // select the best matches
-        float min_dis = std::min_element (
-                            matches.begin(), matches.end(),
-                            [] ( const cv::DMatch& m1, const cv::DMatch& m2 )
-        {
-            return m1.distance < m2.distance;
-        } )->distance;
-
-        float match_ratio = 2.0;     // ratio for selecting  good matches
-        for ( cv::DMatch& m : matches )
-        {
-            if ( m.distance < max<float> ( min_dis*match_ratio, 30.0 ) )
-            {
-                index_id.insert({m.trainIdx, 
-                feature_ids[m.queryIdx]});
-            }
-        }
-    }
-    cout<<"good matches: "<<index_id.size() <<endl;
-
     // from frame to construct image;
-    for (int i = 0; i < static_cast<int>(frame->keypoints.size()); i++)
+    // 将图像特征点数据存到一个map容器中，key是特征点id
+    auto img_msg = &(frame->keypoints);
+    for (unsigned int i = 0; i < img_msg->points.size(); i++)
     {
-        auto iter = index_id.find(i);
-        int feature_id;
-        if (iter != index_id.end())
-            feature_id = iter->second;
-        else
-            feature_id = id_factory++;
-        int camera_id = 0;
-        double x = frame->keysUn[i].x;
-        double y = frame->keysUn[i].y;
-        double z = 1;
-        double p_u = frame->keypoints[i].pt.x;
-        double p_v = frame->keypoints[i].pt.y;
-        double velocity_x = 0;
-        double velocity_y = 0;
+        int v = img_msg->channels[0].values[i] + 0.5; // ？？？这是什么操作
+        int feature_id = v / NUM_OF_CAM;
+        int camera_id = v % NUM_OF_CAM;
+        double x = img_msg->points[i].x;
+        double y = img_msg->points[i].y;
+        double z = img_msg->points[i].z;
+        double p_u = img_msg->channels[1].values[i];
+        double p_v = img_msg->channels[2].values[i];
+        double velocity_x = img_msg->channels[3].values[i];
+        double velocity_y = img_msg->channels[4].values[i];
         ROS_ASSERT(z == 1);
         Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
         xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
-        image[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
-        id_index.insert({feature_id, i});
+        image[feature_id].emplace_back(camera_id, xyz_uv_velocity);
     }
+
+    // 获得描述子信息
+    cv_bridge::CvImageConstPtr ptr;
+    try
+    {
+        ptr = cv_bridge::toCvCopy(frame->descriptors, frame->descriptors.encoding);
+    }
+    catch (cv_bridge::Exception &e)
+    {
+        ROS_ERROR("cv_bridge exception: %s", e.what());
+    }
+    cv::Mat descriptors = ptr->image;
 
     ROS_DEBUG("input feature: %d", (int)image.size());
     ROS_DEBUG("num of feature: %d", getFeatureCount());
     double parallax_sum = 0;
     int parallax_num = 0;
     last_track_num = 0;
+
+    // 候选待匹配的特征，id，描述子，每帧信息
+    std::vector<std::tuple<int, cv::Mat, FeaturePerFrame>> candidate_feature;
+    int index_des = 0;
     for (auto &id_pts : image)
     {
         FeaturePerFrame f_per_fra(id_pts.second[0].second, td);
 
         int feature_id = id_pts.first;
-        auto it = find_if(feature.begin(), feature.end(), [feature_id](const FeaturePerId &it)
-                          {
+        auto it = find_if(feature.begin(), feature.end(), [feature_id](const FeaturePerId &it) {
             return it.feature_id == feature_id;
-                          });
+        });
 
         if (it == feature.end())
         {
-            FeaturePerId feature_per_id = FeaturePerId(feature_id, frame_count);
-            feature_per_id.descriptor = frame->descriptors.row(id_index[feature_id]).clone();
-            feature.push_back(feature_per_id);
-            feature.back().feature_per_frame.push_back(f_per_fra);
+            // 将这个点加入候选集合
+            candidate_feature.push_back(std::make_tuple(feature_id, descriptors.row(index_des), f_per_fra));
         }
         else if (it->feature_id == feature_id)
         {
             it->feature_per_frame.push_back(f_per_fra);
             last_track_num++;
         }
+        index_des++;
     }
+    // 对候选特征点和地图匹配
+    cout << "candidate_feature size = " << candidate_feature.size() << endl;
+    unordered_map<int, int> candidate_map; // 匹配上的点对，下标索引, 候选<->地图
+    cv::Mat train_dep;
+    cv::Mat query_dep;
+    std::vector<cv::DMatch> matches;
+    for (auto &f : feature)
+    {
+        train_dep.push_back(f.descriptor);
+    }
+    for (auto &f : candidate_feature)
+    {
+        query_dep.push_back(std::get<1>(f));
+    }
+    matcher_flann.match(train_dep, query_dep, matches);
+    // select the best matches
+    float min_dis = std::min_element(
+                        matches.begin(), matches.end(),
+                        [](const cv::DMatch &m1, const cv::DMatch &m2) {
+                            return m1.distance < m2.distance;
+                        })
+                        ->distance;
+
+    float match_ratio = 2.0; // ratio for selecting  good matches
+    for (cv::DMatch &m : matches)
+    {
+        if (m.distance < max<float>(min_dis * match_ratio, 30.0))
+        {
+            candidate_map.insert({m.queryIdx, m.trainIdx});
+        }
+    }
+
+    cout << "good matches: " << candidate_map.size() << endl;
+
+    // 根据匹配结果处理特征点
+    for (int i = 0; i < (int)candidate_feature.size(); i++)
+    {
+        auto iter = candidate_map.find(i);
+        // 没匹配上的，新建一个特征点
+        if (iter == candidate_map.end())
+        {
+            FeaturePerId feature_per_id = FeaturePerId(std::get<0>(candidate_feature[i]), frame_count);
+            feature_per_id.descriptor = std::get<1>(candidate_feature[i]);
+            feature.push_back(feature_per_id);
+            feature.back().feature_per_frame.push_back(std::get<2>(candidate_feature[i]));
+        }
+        else
+        // 匹配上的，加一个帧
+        {
+            auto iter_feature = feature.begin();
+            std::advance(iter_feature, iter->second);
+            iter_feature->feature_per_frame.push_back(std::get<2>(candidate_feature[i]));
+            last_track_num++;
+        }
+    }
+
+    // feature_per_id.descriptor = frame->descriptors.row(id_index[feature_id]).clone();
 
     if (frame_count < 2 || last_track_num < 20)
         return true;
@@ -178,7 +204,7 @@ void FeatureManager::debugShow()
         {
             ROS_DEBUG("%d,", int(j.is_used));
             sum += j.is_used;
-            printf("(%lf,%lf) ",j.point(0), j.point(1));
+            printf("(%lf,%lf) ", j.point(0), j.point(1));
         }
         ROS_ASSERT(it.used_num == sum);
     }
@@ -198,7 +224,7 @@ vector<pair<Vector3d, Vector3d>> FeatureManager::getCorresponding(int frame_coun
             a = it.feature_per_frame[idx_l].point;
 
             b = it.feature_per_frame[idx_r].point;
-            
+
             corres.push_back(make_pair(a, b));
         }
     }
@@ -319,7 +345,6 @@ void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[])
         {
             it_per_id.estimated_depth = INIT_DEPTH;
         }
-
     }
 }
 
@@ -350,7 +375,7 @@ void FeatureManager::removeBackShiftDepth(Eigen::Matrix3d marg_R, Eigen::Vector3
             it->start_frame--;
         else
         {
-            Eigen::Vector3d uv_i = it->feature_per_frame[0].point;  
+            Eigen::Vector3d uv_i = it->feature_per_frame[0].point;
             it->feature_per_frame.erase(it->feature_per_frame.begin());
             if (it->feature_per_frame.size() < 2)
             {

@@ -14,7 +14,7 @@ using namespace Eigen;
 #include <ros/assert.h>
 
 #include "parameters.h"
-#include "frame.hpp"
+#include "feature_tracker/Feature.h"
 class FeaturePerFrame
 {
   public:
@@ -86,7 +86,7 @@ class FeatureManager
      * @return true 
      * @return false 
      */
-    bool addFeatureCheckParallax(int frame_count, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, Frame::Ptr frame, double td);
+    bool addFeatureCheckParallax(int frame_count, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, feature_tracker::FeaturePtr, double td);
     void debugShow();
     vector<pair<Vector3d, Vector3d>> getCorresponding(int frame_count_l, int frame_count_r);
 

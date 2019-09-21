@@ -15,7 +15,7 @@
 
 #include "parameters.h"
 #include "tic_toc.h"
-
+#include "BRIEF.h"
 using namespace std;
 using namespace camodocal;
 using namespace Eigen;
@@ -62,4 +62,7 @@ class FeatureTracker
     double prev_time;
 
     static int n_id;
+    cv::Mat descriptors;
+    cv::Mat n_pts_descriptors;
+    DVision::BRIEF brief_feature_detector;
 };
