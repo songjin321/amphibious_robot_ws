@@ -15,7 +15,7 @@ vector<uchar> r_status;
 vector<float> r_err;
 queue<sensor_msgs::ImageConstPtr> img_buf;
 
-ros::Publisher pub_img,pub_match;
+ros::Publisher pub_img, pub_match;
 ros::Publisher pub_restart;
 
 FeatureTracker trackerData[NUM_OF_CAM];
@@ -24,10 +24,10 @@ int pub_count = 1;
 bool first_image_flag = true;
 double last_image_time = 0;
 bool init_pub = 0;
-
+vector<set<int>> hash_ids(NUM_OF_CAM);
 void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
-    if(first_image_flag)
+    if (first_image_flag)
     {
         first_image_flag = false;
         first_image_time = img_msg->header.stamp.toSec();
@@ -38,7 +38,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     if (img_msg->header.stamp.toSec() - last_image_time > 1.0 || img_msg->header.stamp.toSec() < last_image_time)
     {
         ROS_WARN("image discontinue! reset the feature tracker!");
-        first_image_flag = true; 
+        first_image_flag = true;
         last_image_time = 0;
         pub_count = 1;
         std_msgs::Bool restart_flag;
@@ -99,6 +99,16 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         trackerData[i].showUndistortion("undistrotion_" + std::to_string(i));
 #endif
     }
+    // test vector for debug
+    /*
+    cout << "*************************print data for Debug**********************" << endl;
+    for (unsigned int i = 0; i < trackerData[0].ids.size(); i++)
+    {
+        cout << "id = " << trackerData[0].ids[i] << endl;
+        cout << "pts = " << trackerData[0].cur_pts[i] << endl;
+        cout << "descriptors = " << trackerData[0].descriptors.row(i) << endl;
+    }
+    */
 
     for (unsigned int i = 0;; i++)
     {
@@ -110,11 +120,13 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
             break;
     }
 
-   if (PUB_THIS_FRAME)
-   {
+    if (PUB_THIS_FRAME)
+    {
+
+        //
         pub_count++;
         // 发布的feature包括每个点的信息和对应的描述子
-        feature_tracker::Feature feature; 
+        feature_tracker::Feature feature;
         cv_bridge::CvImage cvimage_descriptor;
         cvimage_descriptor.encoding = "mono8";
         sensor_msgs::PointCloudPtr feature_points(new sensor_msgs::PointCloud);
@@ -126,8 +138,8 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 
         feature.header = img_msg->header;
         feature.header.frame_id = "world";
-
-        vector<set<int>> hash_ids(NUM_OF_CAM);
+        set<int> hash_test;
+        vector<cv::Point2f> new_pts;
         for (int i = 0; i < NUM_OF_CAM; i++)
         {
             auto &un_pts = trackerData[i].cur_un_pts;
@@ -140,12 +152,20 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
                 if (trackerData[i].track_cnt[j] > 1)
                 {
                     int p_id = ids[j];
-                    hash_ids[i].insert(p_id);
+                    if (hash_test.find(p_id) != hash_test.end())
+                        ROS_ERROR("two point has same id");
+                    hash_test.insert(p_id);
                     geometry_msgs::Point32 p;
                     p.x = un_pts[j].x;
                     p.y = un_pts[j].y;
                     p.z = 1;
+                    auto iter = hash_ids[i].find(p_id);
+                    if (iter == hash_ids[i].end())
+                    {
+                        new_pts.push_back(cur_pts[j]);
+                    }
 
+                    hash_ids[i].insert(p_id);
                     feature_points->points.push_back(p);
                     id_of_point.values.push_back(p_id * NUM_OF_CAM + i);
                     u_of_point.values.push_back(cur_pts[j].x);
@@ -164,14 +184,17 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         feature_points->channels.push_back(velocity_y_of_point);
         feature.keypoints = *feature_points;
         feature.descriptors = *cvimage_descriptor.toImageMsg();
-        ROS_DEBUG("publish %f, the number of feature point = %d, at %f", feature_points->header.stamp.toSec(), (int)id_of_point.values.size(), ros::Time::now().toSec());
         // skip the first image; since no optical speed on frist image
         if (!init_pub)
         {
             init_pub = 1;
+            return;
         }
         else
+        {
             pub_img.publish(feature);
+            ROS_INFO("publish %f, the number of feature point = %d, at %f", feature.header.stamp.toSec(), (int)id_of_point.values.size(), ros::Time::now().toSec());
+        }
 
         if (SHOW_TRACK)
         {
@@ -186,8 +209,13 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 
                 for (unsigned int j = 0; j < trackerData[i].cur_pts.size(); j++)
                 {
-                    double len = std::min(1.0, 1.0 * trackerData[i].track_cnt[j] / WINDOW_SIZE);
-                    cv::circle(tmp_img, trackerData[i].cur_pts[j], 2, cv::Scalar(255 * (1 - len), 0, 255 * len), 2);
+                    if (trackerData[i].track_cnt[j] > 1)
+                    {
+                        double len = std::min(1.0, 1.0 * trackerData[i].track_cnt[j] / WINDOW_SIZE);
+                        cv::circle(tmp_img, trackerData[i].cur_pts[j], 2, cv::Scalar(255 * (1 - len), 0, 255 * len), 2);
+                        cv::putText(tmp_img, std::to_string(trackerData[i].ids[j]), trackerData[i].cur_pts[j], cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255, 255));
+                    }
+
                     //draw speed line
                     /*
                     Vector2d tmp_cur_un_pts (trackerData[i].cur_un_pts[j].x, trackerData[i].cur_un_pts[j].y);
@@ -203,6 +231,12 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
                     //sprintf(name, "%d", trackerData[i].ids[j]);
                     //cv::putText(tmp_img, name, trackerData[i].cur_pts[j], cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
                 }
+
+                // 画出新加的那些特征点
+                for (unsigned int j = 0; j < new_pts.size(); j++)
+                {
+                    cv::circle(tmp_img, new_pts[j], 2, cv::Scalar(0, 255, 0), 2);
+                }
             }
             //cv::imshow("vis", stereo_img);
             //cv::waitKey(5);
@@ -216,18 +250,18 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "feature_tracker");
     ros::NodeHandle n("~");
-    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
+    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug);
     readParameters(n);
     ROS_DEBUG("Hello feature tracker!");
     for (int i = 0; i < NUM_OF_CAM; i++)
         trackerData[i].readIntrinsicParameter(CAM_NAMES[i]);
 
-    if(FISHEYE)
+    if (FISHEYE)
     {
         for (int i = 0; i < NUM_OF_CAM; i++)
         {
             trackerData[i].fisheye_mask = cv::imread(FISHEYE_MASK, 0);
-            if(!trackerData[i].fisheye_mask.data)
+            if (!trackerData[i].fisheye_mask.data)
             {
                 ROS_INFO("load mask fail");
                 ROS_BREAK();
@@ -240,8 +274,8 @@ int main(int argc, char **argv)
     ros::Subscriber sub_img = n.subscribe(IMAGE_TOPIC, 100, img_callback);
 
     pub_img = n.advertise<feature_tracker::Feature>("feature", 1000);
-    pub_match = n.advertise<sensor_msgs::Image>("feature_img",1000);
-    pub_restart = n.advertise<std_msgs::Bool>("restart",1000);
+    pub_match = n.advertise<sensor_msgs::Image>("feature_img", 1000);
+    pub_restart = n.advertise<std_msgs::Bool>("restart", 1000);
     /*
     if (SHOW_TRACK)
         cv::namedWindow("vis", cv::WINDOW_NORMAL);
@@ -249,7 +283,6 @@ int main(int argc, char **argv)
     ros::spin();
     return 0;
 }
-
 
 // new points velocity is 0, pub or not?
 // track cnt > 1 pub?

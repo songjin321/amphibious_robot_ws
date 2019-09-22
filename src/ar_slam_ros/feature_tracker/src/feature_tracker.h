@@ -34,7 +34,7 @@ class FeatureTracker
 
     void setMask();
 
-    void addPoints();
+    void addPoints(cv::Mat );
 
     bool updateID(unsigned int i);
 
@@ -63,6 +63,5 @@ class FeatureTracker
 
     static int n_id;
     cv::Mat descriptors;
-    cv::Mat n_pts_descriptors;
     DVision::BRIEF brief_feature_detector;
 };

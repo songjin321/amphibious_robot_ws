@@ -33,11 +33,12 @@ void reduceVector(cv::Mat &v, vector<uchar> status)
     int j = 0;
     for (int i = 0; i < v.rows; i++)
         if (status[i])
-            v.row(j++) = v.row(i).clone();
+            v.row(i).copyTo(v.row(j++)); // 注意要使用copyTo。。。，直接访问row，是一个copy，不会改变原mat
+    v = v.rowRange(0, j);
 }
 
 FeatureTracker::FeatureTracker():
-brief_feature_detector(64)
+brief_feature_detector()
 {
 }
 
@@ -50,33 +51,35 @@ void FeatureTracker::setMask()
     
 
     // prefer to keep features that are tracked for long time
-    vector<pair<int, pair<cv::Point2f, int>>> cnt_pts_id;
+    // track_count, point, id, descriptor
+    vector< tuple<int, cv::Point2f, int, cv::Mat> > cnt_pts_id_des;
 
     for (unsigned int i = 0; i < forw_pts.size(); i++)
-        cnt_pts_id.push_back(make_pair(track_cnt[i], make_pair(forw_pts[i], ids[i])));
+        cnt_pts_id_des.push_back(make_tuple(track_cnt[i], forw_pts[i], ids[i], descriptors.row(i).clone()));
 
-    sort(cnt_pts_id.begin(), cnt_pts_id.end(), [](const pair<int, pair<cv::Point2f, int>> &a, const pair<int, pair<cv::Point2f, int>> &b)
+    sort(cnt_pts_id_des.begin(), cnt_pts_id_des.end(), [](const tuple<int, cv::Point2f, int, cv::Mat> &a, const tuple<int, cv::Point2f, int, cv::Mat> &b)
          {
-            return a.first > b.first;
+            return std::get<0>(a) > std::get<0>(b);
          });
 
     forw_pts.clear();
     ids.clear();
     track_cnt.clear();
-
-    for (auto &it : cnt_pts_id)
+    descriptors.release();
+    for (auto &it : cnt_pts_id_des)
     {
-        if (mask.at<uchar>(it.second.first) == 255)
+        if (mask.at<uchar>(std::get<1>(it)) == 255)
         {
-            forw_pts.push_back(it.second.first);
-            ids.push_back(it.second.second);
-            track_cnt.push_back(it.first);
-            cv::circle(mask, it.second.first, MIN_DIST, 0, -1);
+            track_cnt.push_back(std::get<0>(it));
+            forw_pts.push_back(std::get<1>(it));
+            ids.push_back(std::get<2>(it));
+            cv::circle(mask, std::get<1>(it), MIN_DIST, 0, -1);
+            descriptors.push_back(std::get<3>(it));
         }
     }
 }
 
-void FeatureTracker::addPoints()
+void FeatureTracker::addPoints(cv::Mat n_pts_descriptors)
 {
     for (size_t i = 0; i < n_pts.size(); i++)
     {
@@ -153,6 +156,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
         ROS_DEBUG("detect feature begins");
         TicToc t_t;
         int n_max_cnt = MAX_CNT - static_cast<int>(forw_pts.size());
+        cv::Mat n_pts_descriptors;
         if (n_max_cnt > 0)
         {
             if(mask.empty())
@@ -182,21 +186,20 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                 {
                     one_row.at<uchar>(0, j) = bits[j];
                 }
-                n_pts_descriptors.push_back(one_row);
+                n_pts_descriptors.push_back(one_row.clone()); 
             }      
             ROS_DEBUG("assign Feature costs: %fms", t_assign.toc());
         }
         else
         {
             n_pts.clear();
-            n_pts_descriptors.release();
         }
 
         ROS_DEBUG("detect feature costs: %fms", t_t.toc());
 
         ROS_DEBUG("add feature begins");
         TicToc t_a;
-        addPoints();
+        addPoints(n_pts_descriptors);
         ROS_DEBUG("selectFeature costs: %fms", t_a.toc());
     }
     prev_img = cur_img;

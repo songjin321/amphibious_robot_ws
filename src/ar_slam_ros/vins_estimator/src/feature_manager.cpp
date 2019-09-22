@@ -74,7 +74,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
     {
         ROS_ERROR("cv_bridge exception: %s", e.what());
     }
-    cv::Mat descriptors = ptr->image;
+    cv::Mat descriptors = ptr->image.clone();
 
     ROS_DEBUG("input feature: %d", (int)image.size());
     ROS_DEBUG("num of feature: %d", getFeatureCount());
@@ -120,7 +120,15 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
     {
         query_dep.push_back(std::get<1>(f));
     }
-    matcher_flann.match(train_dep, query_dep, matches);
+    cout << "train rows = " << train_dep.rows << " train cols = " << train_dep.cols << endl;
+    cout << "query_dep rows = " << query_dep.rows << " query_dep cols = " << query_dep.cols << endl;
+    if (train_dep.rows !=0 && query_dep.rows != 0)
+    {
+        matcher_flann.match(query_dep, train_dep, matches);
+        // cv::BFMatcher matcher(cv::NORM_HAMMING);
+        // matcher.match(train_dep, query_dep, matches);
+    }
+
     // select the best matches
     float min_dis = std::min_element(
                         matches.begin(), matches.end(),
@@ -128,18 +136,24 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
                             return m1.distance < m2.distance;
                         })
                         ->distance;
-
     float match_ratio = 2.0; // ratio for selecting  good matches
     for (cv::DMatch &m : matches)
     {
-        if (m.distance < max<float>(min_dis * match_ratio, 30.0))
+        cout << "m.distance = " << m.distance << endl;
+        if (m.distance < 10)
         {
             candidate_map.insert({m.queryIdx, m.trainIdx});
+            cout << "good match " << " query id = " << std::get<0>(candidate_feature[m.queryIdx ]);
+            auto iter_feature = feature.begin();
+            std::advance(iter_feature, m.trainIdx);
+            cout << " train id = " << iter_feature->feature_id << endl;
+            cout << "query descriptors = " << query_dep.row(m.queryIdx) << endl;
+            cout << "train descriptors = " << train_dep.row(m.trainIdx) << endl;
         }
     }
 
     cout << "good matches: " << candidate_map.size() << endl;
-
+    // candidate_map.clear();
     // 根据匹配结果处理特征点
     for (int i = 0; i < (int)candidate_feature.size(); i++)
     {
@@ -148,7 +162,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
         if (iter == candidate_map.end())
         {
             FeaturePerId feature_per_id = FeaturePerId(std::get<0>(candidate_feature[i]), frame_count);
-            feature_per_id.descriptor = std::get<1>(candidate_feature[i]);
+            feature_per_id.descriptor = std::get<1>(candidate_feature[i]).clone();
             feature.push_back(feature_per_id);
             feature.back().feature_per_frame.push_back(std::get<2>(candidate_feature[i]));
         }
