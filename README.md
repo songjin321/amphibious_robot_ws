@@ -44,7 +44,10 @@ https://github.com/ceres-solver/ceres-solver
 rosdep install --from-paths src --ignore-src -r -y（**每一个包都要在自己的package.xml中写好相关的依赖**）
 ### 2.下载代码
 ```bash
+<<<<<<< HEAD
 
+=======
+>>>>>>> vins-mono
 git clone https://git.nrs-lab.com/amphirobot/amphibious_robot_ws-.git
 git submoudle init
 git submoudle update 

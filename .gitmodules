@@ -1,0 +1,3 @@
+[submodule "src/ar_slam_ros/ar_slam"]
+	path = src/ar_slam_ros/ar_slam
+	url = https://git.nrs-lab.com/amphirobot/svae-slam.git
