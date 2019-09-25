@@ -139,7 +139,6 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         feature.header = img_msg->header;
         feature.header.frame_id = "world";
         set<int> hash_test;
-        vector<cv::Point2f> new_pts;
         for (int i = 0; i < NUM_OF_CAM; i++)
         {
             auto &un_pts = trackerData[i].cur_un_pts;
@@ -159,13 +158,6 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
                     p.x = un_pts[j].x;
                     p.y = un_pts[j].y;
                     p.z = 1;
-                    auto iter = hash_ids[i].find(p_id);
-                    if (iter == hash_ids[i].end())
-                    {
-                        new_pts.push_back(cur_pts[j]);
-                    }
-
-                    hash_ids[i].insert(p_id);
                     feature_points->points.push_back(p);
                     id_of_point.values.push_back(p_id * NUM_OF_CAM + i);
                     u_of_point.values.push_back(cur_pts[j].x);
@@ -213,7 +205,6 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
                     {
                         double len = std::min(1.0, 1.0 * trackerData[i].track_cnt[j] / WINDOW_SIZE);
                         cv::circle(tmp_img, trackerData[i].cur_pts[j], 2, cv::Scalar(255 * (1 - len), 0, 255 * len), 2);
-                        cv::putText(tmp_img, std::to_string(trackerData[i].ids[j]), trackerData[i].cur_pts[j], cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255, 255));
                     }
 
                     //draw speed line
@@ -231,12 +222,6 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
                     //sprintf(name, "%d", trackerData[i].ids[j]);
                     //cv::putText(tmp_img, name, trackerData[i].cur_pts[j], cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
                 }
-
-                // 画出新加的那些特征点
-                for (unsigned int j = 0; j < new_pts.size(); j++)
-                {
-                    cv::circle(tmp_img, new_pts[j], 2, cv::Scalar(0, 255, 0), 2);
-                }
             }
             //cv::imshow("vis", stereo_img);
             //cv::waitKey(5);
@@ -250,7 +235,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "feature_tracker");
     ros::NodeHandle n("~");
-    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug);
+    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
     readParameters(n);
     ROS_DEBUG("Hello feature tracker!");
     for (int i = 0; i < NUM_OF_CAM; i++)

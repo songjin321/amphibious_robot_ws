@@ -132,7 +132,51 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
     ROS_DEBUG("Solving %d", frame_count);
     ROS_DEBUG("number of feature: %d", f_manager.getFeatureCount());
     Headers[frame_count] = header;
+    // 画图显示匹配结果
+    /*
+    if (!f_manager.match_show.empty())
+    {
+        // 获取window+1张原图，用于显示
+        std::vector<cv::Mat> show_img(WINDOW_SIZE + 1);
+        int j = 0;
+        for (auto header_image : image_buf)
+        {
+            if (header_image.first.stamp.toSec() == Headers[j].stamp.toSec())
+            {
+                show_img.push_back(header_image.second);
+                j++;
+                if (j > WINDOW_SIZE)
+                    break;
+            }
+        }
 
+        // 画图
+        for(auto iter_feature : f_manager.match_show)
+        {
+            // 画新检测的特征点
+            cv::Point2f pts;
+            pts.x = iter_feature.second->feature_per_frame.back().uv[0];
+            pts.y = iter_feature.second->feature_per_frame.back().uv[1];
+            cv::circle(show_img.back(), pts, 2, cv::Scalar(0, 255, 0), 2);
+            cv::putText(show_img.back(), std::to_string(iter_feature.first), pts, cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255, 255));
+            
+            // 画之前的特征点
+            for(auto iter_frame = iter_feature.second->feature_per_frame.begin(); 
+            iter_frame != iter_feature.second->feature_per_frame.end()-1;
+            iter_frame++)
+            {
+                cv::Point2f pts;
+                pts.x = iter_frame->uv[0];
+                pts.y = iter_frame->uv[1];
+                int id = iter_feature.second->feature_id;
+                int image_index = iter_feature.second->start_frame + iter_frame->offset;
+                cv::circle(show_img[image_index], pts, 2, cv::Scalar(255, 0, 0), 2);
+                cv::putText(show_img[image_index], std::to_string(id), pts, cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255, 255));
+            }
+        }
+
+    }
+    */
     ImageFrame imageframe(image, header.stamp.toSec());
     imageframe.pre_integration = tmp_pre_integration;
     all_image_frame.insert(make_pair(header.stamp.toSec(), imageframe));
@@ -447,7 +491,7 @@ bool Estimator::relativePose(Matrix3d &relative_R, Vector3d &relative_T, int &l)
     {
         vector<pair<Vector3d, Vector3d>> corres;
         corres = f_manager.getCorresponding(i, WINDOW_SIZE);
-        ROS_DEBUG("the corresponds between current frame and %d frame = %d", i, corres.size());
+        ROS_DEBUG("the corresponds between current frame and %d frame = %d", i, (int)corres.size());
         if (corres.size() > 20)
         {
             double sum_parallax = 0;
@@ -734,7 +778,7 @@ void Estimator::optimization()
 
         for (auto &it_per_frame : it_per_id.feature_per_frame)
         {
-            imu_j++;
+            imu_j = it_per_id.start_frame + it_per_frame.offset;
             if (imu_i == imu_j)
             {
                 continue;

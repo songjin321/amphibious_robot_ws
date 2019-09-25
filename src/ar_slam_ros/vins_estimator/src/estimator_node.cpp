@@ -166,8 +166,13 @@ getMeasurements()
         image = ptr->image;
     else 
         LOG(WARNING) << "unclear image encode type";
+    m_estimator.lock();
+    if (estimator.image_buf.size() > 200)
+        estimator.image_buf.pop_front();
+    estimator.image_buf.push_back({img_msg->header, image});
+    m_estimator.unlock();
 
-
+#ifdef DETECT_ORB
     std::vector<cv::KeyPoint>   keypoints;     // keypoints in current frame
     cv::Mat                     descriptors;   // descriptor in current frame 
     
@@ -216,6 +221,7 @@ getMeasurements()
     frame_buf.push(frame);
     m_buf.unlock();
     con.notify_one();
+#endif
 }
 
 void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
@@ -425,8 +431,7 @@ int main(int argc, char **argv)
     ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
     ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
     ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
-    // ros::Subscriber sub_raw_image = n.subscribe(IMAGE_TOPIC, 100, img_callback);
-
+    // ros::Subscriber sub_raw_image = n.subscribe(IMAGE_TOPIC, 100, img_callback); // save image for show
     std::thread measurement_process{process};
     ros::spin();
 

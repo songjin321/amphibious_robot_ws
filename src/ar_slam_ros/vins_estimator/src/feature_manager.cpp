@@ -96,11 +96,12 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
 
         if (it == feature.end())
         {
-            // 将这个点加入候选集合
+            // 将这个点加入候选匹配集合
             candidate_feature.push_back(std::make_tuple(feature_id, descriptors.row(index_des), f_per_fra));
         }
-        else if (it->feature_id == feature_id)
+        else
         {
+            f_per_fra.offset = frame_count - it->start_frame; 
             it->feature_per_frame.push_back(f_per_fra);
             last_track_num++;
         }
@@ -130,6 +131,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
     }
 
     // select the best matches
+    /**
     float min_dis = std::min_element(
                         matches.begin(), matches.end(),
                         [](const cv::DMatch &m1, const cv::DMatch &m2) {
@@ -137,42 +139,53 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
                         })
                         ->distance;
     float match_ratio = 2.0; // ratio for selecting  good matches
+    **/
     for (cv::DMatch &m : matches)
     {
-        cout << "m.distance = " << m.distance << endl;
         if (m.distance < 10)
         {
-            candidate_map.insert({m.queryIdx, m.trainIdx});
-            cout << "good match " << " query id = " << std::get<0>(candidate_feature[m.queryIdx ]);
+            cout << "m.distance = " << m.distance << endl;
+            cout << "good match " << " query id = " << std::get<0>(candidate_feature[m.queryIdx]);
             auto iter_feature = feature.begin();
             std::advance(iter_feature, m.trainIdx);
             cout << " train id = " << iter_feature->feature_id << endl;
-            cout << "query descriptors = " << query_dep.row(m.queryIdx) << endl;
-            cout << "train descriptors = " << train_dep.row(m.trainIdx) << endl;
+            candidate_map.insert({std::get<0>(candidate_feature[m.queryIdx]), iter_feature->feature_id});
+            // cout << "query descriptors = " << query_dep.row(m.queryIdx) << endl;
+            // cout << "train descriptors = " << train_dep.row(m.trainIdx) << endl;
         }
     }
-
     cout << "good matches: " << candidate_map.size() << endl;
     // candidate_map.clear();
     // 根据匹配结果处理特征点
+    match_show.clear();
     for (int i = 0; i < (int)candidate_feature.size(); i++)
     {
-        auto iter = candidate_map.find(i);
+        auto iter = candidate_map.find(std::get<0>(candidate_feature[i]));
         // 没匹配上的，新建一个特征点
         if (iter == candidate_map.end())
         {
             FeaturePerId feature_per_id = FeaturePerId(std::get<0>(candidate_feature[i]), frame_count);
             feature_per_id.descriptor = std::get<1>(candidate_feature[i]).clone();
             feature.push_back(feature_per_id);
-            feature.back().feature_per_frame.push_back(std::get<2>(candidate_feature[i]));
+            FeaturePerFrame f_per_frame = std::get<2>(candidate_feature[i]);
+            f_per_frame.offset = 0;
+            feature.back().feature_per_frame.push_back(f_per_frame);
         }
         else
-        // 匹配上的，加一个帧
+        // 匹配上的，对应id的frame上加一个观测帧
         {
-            auto iter_feature = feature.begin();
-            std::advance(iter_feature, iter->second);
-            iter_feature->feature_per_frame.push_back(std::get<2>(candidate_feature[i]));
-            last_track_num++;
+            for(auto iter_feature : feature)
+            {
+                if (iter_feature.feature_id == iter->second)
+                {
+                    FeaturePerFrame f_per_frame = std::get<2>(candidate_feature[i]);
+                    f_per_frame.offset = frame_count - iter_feature.start_frame;
+                    iter_feature.feature_per_frame.push_back(f_per_frame);
+                    last_track_num++;
+                    match_show.push_back({iter->first, &iter_feature});
+                    break;
+                }
+            }
         }
     }
 

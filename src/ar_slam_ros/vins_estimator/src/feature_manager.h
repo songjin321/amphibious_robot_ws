@@ -39,6 +39,7 @@ class FeaturePerFrame
     MatrixXd A;
     VectorXd b;
     double dep_gradient;
+    int offset; // 特征点第一次观测对应的offset为0
 };
 
 class FeaturePerId
@@ -102,7 +103,8 @@ class FeatureManager
     void removeOutlier();
     list<FeaturePerId> feature;
     int last_track_num;
-
+    vector<pair<int, FeaturePerId*>> match_show; // new_id, 和其匹配的特征点
+    
   private:
     double compensatedParallax2(const FeaturePerId &it_per_id, int frame_count);
     const Matrix3d *Rs;
