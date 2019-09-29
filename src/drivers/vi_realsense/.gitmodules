@@ -1,6 +1,0 @@
-[submodule "realsense"]
-	path = realsense
-	url = https://github.com/ethz-asl/realsense.git
-[submodule "librealsense"]
-	path = librealsense
-	url = https://github.com/IntelRealSense/librealsense.git

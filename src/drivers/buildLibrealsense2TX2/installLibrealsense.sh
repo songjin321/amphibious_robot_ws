@@ -6,7 +6,7 @@
 # librealsense requires CMake 3.8+ to build; the repositories hold CMake 3.5.1
 # In this script, we build 3.11 but do not install it
 
-LIBREALSENSE_DIRECTORY=${HOME}/amphibious_robot_ws/src/drivers/vi_realsense/librealsense
+LIBREALSENSE_DIRECTORY=${HOME}/librealsense
 LIBREALSENSE_VERSION=v2.19.1
 INSTALL_DIR=$PWD
 

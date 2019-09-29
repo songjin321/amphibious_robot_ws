@@ -6,7 +6,7 @@
 
 CLEANUP=true
 
-LIBREALSENSE_DIRECTORY=${HOME}/amphibious_robot_ws/src/drivers/vi_realsense/librealsense
+LIBREALSENSE_DIRECTORY=${HOME}/librealsense
 LIBREALSENSE_VERSION=v2.19.1
 
 
