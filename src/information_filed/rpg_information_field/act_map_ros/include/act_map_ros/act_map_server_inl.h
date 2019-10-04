@@ -26,7 +26,7 @@ ActMapServer<T>::ActMapServer(const ros::NodeHandle& nh,
 {
   readParams();
   init();
-  ROS_ERROR_STREAM("inl_ActMapServer has been called");
+  LOG(INFO) << "inl_ActMapServer has been called";
   setupROS();
 }
 
@@ -167,9 +167,7 @@ void ActMapServer<T>::init()
 template <typename T>
 void ActMapServer<T>::setupROS()
 {
-  ROS_ERROR_STREAM("INL_setupROS has been called");
-  ROS_ERROR_STREAM(options_.features3d_topic_name_);
-  ROS_ERROR_STREAM(options_.n_cams_);
+  LOG(INFO) << "INL_setupROS has been called";
   feature_3d_w_sub_.clear();
   for (size_t i = 0; i < options_.n_cams_; i++)
   {
@@ -201,7 +199,7 @@ void ActMapServer<T>::feature3dCallback(const PCLPointCloud::ConstPtr& pc,
 {
   ros::Time pc_time;
   pcl_conversions::fromPCL(pc->header.stamp, pc_time);
-  ROS_ERROR_STREAM("feature3dCallback has been called");
+  LOG(INFO) <<"feature3dCallback has been called";
 
   if (pc->empty())
   {
@@ -223,7 +221,6 @@ void ActMapServer<T>::feature3dCallback(const PCLPointCloud::ConstPtr& pc,
     LOG(WARNING) << "Could not find TF, not integrating.";
     return;
   }
-  LOG(WARNING) << " T_w_c = " << T_w_c;
   rpg::Timer timer;
 
   timer.start();
@@ -231,18 +228,16 @@ void ActMapServer<T>::feature3dCallback(const PCLPointCloud::ConstPtr& pc,
   pCLPointCloudToEigen3Xd(*pc, &pc_mat_world);
   Eigen::Matrix3Xd pc_mat_cam;
   pc_mat_cam = T_w_c.inverse().transformVectorized(pc_mat_world);
-  // LOG(WARNING) << " pc_mat_world = " << pc_mat_world;
   act_map_->integratePointCloudOccupancy(T_w_c, pc_mat_cam);
-  LOG(WARNING) << "Updated occupancy layer. It took " << timer.stop() * 1000 << " m"
+  LOG(INFO) << "Updated occupancy layer. It took " << timer.stop() * 1000 << " m"
                                                                            "s";
-
   timer.start();
   updateKernelLayer();
-  LOG(WARNING) << "Updated kernel layer. It took " << timer.stop() * 1000 << " ms";
+  LOG(INFO) << "Updated kernel layer. It took " << timer.stop() * 1000 << " ms";
 
   timer.start();
   visualizeAll(pc_time);
-  LOG(WARNING) << "Visualization took " << timer.stop() * 1000 << " ms";
+  LOG(INFO) << "Visualization took " << timer.stop() * 1000 << " ms";
 }
 
 template <typename T>
@@ -325,18 +320,25 @@ template <typename T>
 void ActMapServer<T>::bodyPoseCallback(
     const geometry_msgs::PoseStampedConstPtr& pose)
 {
-  ROS_ERROR_STREAM("bodyPoseCallback has been called");
+  LOG(INFO) <<"bodyPoseCallback has been called";
   static rpg::Pose prev_added_Twb;
   rpg::Pose Twb;
   rosPoseToKindr(pose->pose, &Twb);
-  // LOG(WARNING) << " body pose callback Twb = " << Twb;
+  act_map_->addCenterToKernelLayer(Twb);
+  if (options_.only_activate_nearby_kernel_blks_)
+  {
+    const double block_half_dia_len = act_map_->kerBlockHalfDiagonal();
+    act_map_->activateBlocksByDistance(Twb.getPosition(),
+                                        options_.kernel_blks_activate_dist_);
+  }
+  /*
   if ((Twb.getPosition() - prev_added_Twb.getPosition()).norm() >
       options_.kernel_expand_dist_thresh_)
   {
     rpg::Timer timer;
     timer.start();
     act_map_->addRegionToKernelLayer(Twb, options_.kernel_expand_ranges_);
-    LOG(WARNING) << "Expand kernel layer took " << timer.stop() * 1000 << " ms";
+    LOG(INFO) << "Expand kernel layer took " << timer.stop() * 1000 << " ms";
     pub_kernel_blk_centers_ = true;
 
     if (options_.only_activate_nearby_kernel_blks_)
@@ -348,6 +350,7 @@ void ActMapServer<T>::bodyPoseCallback(
     }
     prev_added_Twb = Twb;
   }
+  */
 }
 
 template <typename T>
@@ -442,7 +445,7 @@ void ActMapServer<T>::visualizeKerBestViews() const
                            &bviews,
                            &values,
                            &global_idxs);
-  VLOG(2) << "Computing " << vox_cs.size() << " views for visulization took "
+  LOG(INFO) << "Computing " << vox_cs.size() << " views for visulization took "
           << timer.stop() * 1000 << " ms.";
 
   visualization_msgs::MarkerArray ma;

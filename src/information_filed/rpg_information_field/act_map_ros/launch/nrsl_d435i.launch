@@ -1,0 +1,9 @@
+<launch>
+
+   <node name="act_map" pkg="act_map_ros" type="trace_map_server_node" output="screen" args="-alsologtostderr --v=1" clear_params="true">
+     <rosparam command="load" file="$(find act_map_ros)/params/nrsl_d435i.yaml"/>
+     <param name="features3d_topic_name" value="/vins_estimator/point_cloud" />
+     <param name="body_pose_topic_name" value="/vins_estimator/camera_pose" />
+   </node>
+
+</launch>

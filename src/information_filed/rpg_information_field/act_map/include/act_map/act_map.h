@@ -86,7 +86,8 @@ public:
 
   void addRegionToKernelLayer(const rpg::Pose& Twb,
                               const std::vector<double>& ranges);
-
+  // 每次拓展只把相机当前位置新建立一个块，保证只有这一个块
+  void addCenterToKernelLayer(const rpg::Pose& Twb);
   // map query
   void getBestViewsAt(const size_t cam_id,
                       const int samples_per_side,
@@ -319,6 +320,12 @@ void ActMap<T>::allocateKernelLayerUniform(const std::vector<double>& ranges)
     LOG(FATAL) << "Wrong range specification.";
   }
 
+  LOG(WARNING) << "generate point size = " << points.size();
+  for (int i = 0; i < points.size(); i++)
+  {
+    LOG(WARNING) << "point coordinate : " << points[i];
+  }
+
   {
     std::lock_guard<std::mutex> lock_ker(ker_mutex_);
     std::lock_guard<std::mutex> lock_occ(occ_mutex_);
@@ -326,6 +333,10 @@ void ActMap<T>::allocateKernelLayerUniform(const std::vector<double>& ranges)
     voxblox::IndexSet covered_blks;
     utils::allocateBlocksByCoordinatesBatch(
         points, ker_layer_.get(), &new_blks, &covered_blks);
+    for (const voxblox::BlockIndex& idx : new_blks)
+    {
+      LOG(WARNING) << "Block id = " << idx;
+    }
     int n_masked = 0;
     if (options_.use_collision_checker_)
     {
@@ -342,9 +353,9 @@ void ActMap<T>::allocateKernelLayerUniform(const std::vector<double>& ranges)
     }
     else
     {
-      VLOG(3) << "Not using collision checker.";
+      LOG(INFO) << "Not using collision checker.";
     }
-    VLOG(3) << "Kernel Expand: allocated " << new_blks.size() << " new blocks, "
+    LOG(INFO) << "Kernel Expand: allocated " << new_blks.size() << " new blocks, "
             << "covered " << covered_blks.size() << " blocks, "
             << "and masked " << n_masked << " voxels in covered blocks.";
     kblk_idxs_to_recompute_.insert(new_blks.begin(), new_blks.end());
@@ -370,7 +381,8 @@ template <typename T>
 void ActMap<T>::updateKernelLayerIncremental()
 {
   std::lock_guard<std::mutex> lock_ker(ker_mutex_);
-
+  LOG(INFO) << "update Kernel: recomputed kernel size = " << kblk_idxs_to_recompute_.size()
+  << " updated kernel size = " << kblk_idxs_to_update_.size();
   voxblox::BlockIndexList del_block_idxs;
   voxblox::BlockIndexList add_block_idxs;
   rpg::Timer timer;
@@ -453,6 +465,55 @@ void ActMap<T>::addRegionToKernelLayer(const rpg::Pose& Twb,
 }
 
 template <typename T>
+void ActMap<T>::addCenterToKernelLayer(const rpg::Pose& Twb)
+{
+  rpg::PositionVec points;
+  points.resize(1);
+  points[0].x() = Twb.getPosition().x();
+  points[0].y() = Twb.getPosition().y();
+  points[0].z() = Twb.getPosition().z();
+  {
+    std::lock_guard<std::mutex> lock_ker(ker_mutex_);
+    std::lock_guard<std::mutex> lock_occ(occ_mutex_);
+    // 先直接删除所有blocks
+    ker_layer_->removeAllBlocks(); 
+    kblk_idxs_to_recompute_.clear();
+    kblk_idxs_to_update_.clear();
+    //
+    voxblox::BlockIndexList new_blks;
+    voxblox::IndexSet covered_blks;
+    utils::allocateBlocksByCoordinatesBatch(
+        points, ker_layer_.get(), &new_blks, &covered_blks);
+    for (const voxblox::BlockIndex& idx : new_blks)
+    {
+      LOG(WARNING) << "Block id = \n" << idx;
+    }
+    int n_masked = 0;
+    if (options_.use_collision_checker_)
+    {
+      for (const voxblox::BlockIndex& idx : new_blks)
+      {
+        typename voxblox::Block<T>::Ptr blk_ptr =
+            ker_layer_->getBlockPtrByIndex(idx);
+        n_masked += utils::maskCollidedVoxels(
+            *occ_layer_,
+            blk_ptr.get(),
+            options_.ker_integrator_options_.occ_thresh_,
+            options_.col_ops_);
+      }
+    }
+    else
+    {
+      LOG(INFO) << "Not using collision checker.";
+    }
+    LOG(INFO) << "Kernel Expand: allocated " << new_blks.size() << " new blocks, "
+            << "covered " << covered_blks.size() << " blocks, "
+            << "and masked " << n_masked << " voxels in covered blocks.";
+    kblk_idxs_to_recompute_.insert(new_blks.begin(), new_blks.end());
+  }
+}
+
+template <typename T>
 void ActMap<T>::getBestViewsAt(const size_t cam_id,
                                const int samples_per_side,
                                const bool use_sampling,
@@ -512,6 +573,7 @@ void ActMap<T>::activateBlocksByDistance(const Eigen::Vector3d& pos,
 
   voxblox::BlockIndexList blk_idxs;
   ker_layer_->getAllAllocatedBlocks(&blk_idxs);
+  LOG(WARNING) << "current block size = " << blk_idxs.size();
   for (const voxblox::BlockIndex& idx : blk_idxs)
   {
     typename voxblox::Block<T>::Ptr blk_ptr =
@@ -537,7 +599,7 @@ void ActMap<T>::activateBlocksByDistance(const Eigen::Vector3d& pos,
     }
   }
 
-  VLOG(3) << "Blocks: Active -> Deactive: " << deactivated_idxs.size()
+  LOG(INFO) << "Blocks: Active -> Deactive: " << deactivated_idxs.size()
           << ", Deactive -> Active: " << reactivated_idxs.size();
   for (const voxblox::BlockIndex& idx : deactivated_idxs)
   {

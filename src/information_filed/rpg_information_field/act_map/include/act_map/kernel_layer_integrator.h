@@ -347,6 +347,7 @@ void KernelLayerIntegrator<KVType>::updateKernelLayerFromPoints(
     for (size_t vox_i = 0; vox_i < blk_ptr->num_voxels(); vox_i++)
     {
       Eigen::Vector3d voxc = blk_ptr->computeCoordinatesFromLinearIndex(vox_i);
+      int recompute_occ_point_size = 0;
       for (size_t occ_blk_i = 0; occ_blk_i < occ_blk_cs.size(); occ_blk_i++)
       {
         if ((occ_blk_cs[occ_blk_i] - voxc).norm() > dist_thresh)
@@ -355,6 +356,7 @@ void KernelLayerIntegrator<KVType>::updateKernelLayerFromPoints(
         }
         bool vox_updated = updateKernelVoxelFromPoints(
             occ_points_w[occ_blk_i], action, blk_ptr.get(), vox_i);
+        recompute_occ_point_size++;
         if (vox_updated)
         {
           blk_updated = true;
@@ -362,6 +364,7 @@ void KernelLayerIntegrator<KVType>::updateKernelLayerFromPoints(
           blk_ptr->setVoxDataValid(true, vox_i);
         }
       }
+      LOG(ERROR) << "recompute_occ_point_size = " << recompute_occ_point_size;
     }
     if (blk_updated)
     {
