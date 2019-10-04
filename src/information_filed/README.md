@@ -1,8 +1,8 @@
-# information_filed
+# information_field
+code of fisher information feild that shared by the author 
 
-## 简介
+信息场
 
+使用rpg_information_filed+voxblox
 
-## 接口
-1. 订阅特征点话题                  话题名称：        话题类型
-2. 提供一个服务用来控制相机姿态     服务名称：        服务类型：
+目标是使其在tx2上能实时跑起来，整个系统。
