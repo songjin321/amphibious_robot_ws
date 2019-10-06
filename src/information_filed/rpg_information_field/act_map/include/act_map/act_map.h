@@ -19,7 +19,7 @@
 #include "act_map/common.h"
 #include "act_map/sampler.h"
 #include "act_map/kernel_layer_integrator.h"
-
+#include "act_map/optim_orient.h"
 namespace act_map
 {
 struct ActMapOptions
@@ -97,7 +97,13 @@ public:
                       Vec3dVec* best_views,
                       std::vector<double>* values,
                       voxblox::LongIndexVector* global_idxs) const;
-
+  void getSpecificViewInfoAt(const size_t cam_id,
+                              const int samples_per_side,
+                              const bool only_updated,
+                              const rpg::Pose& curr_pose,
+                              Eigen::Vector3d& curr_position,
+                              Eigen::Vector3d& curr_view,
+                              double& curr_value);
   // misc
   inline const voxblox::BlockIndexList&
   getAccumulatedUpdatedKernelBlocksIndices() const
@@ -475,18 +481,13 @@ void ActMap<T>::addCenterToKernelLayer(const rpg::Pose& Twb)
   {
     std::lock_guard<std::mutex> lock_ker(ker_mutex_);
     std::lock_guard<std::mutex> lock_occ(occ_mutex_);
-    // 先直接删除所有blocks
-    ker_layer_->removeAllBlocks(); 
-    kblk_idxs_to_recompute_.clear();
-    kblk_idxs_to_update_.clear();
-    //
     voxblox::BlockIndexList new_blks;
     voxblox::IndexSet covered_blks;
-    utils::allocateBlocksByCoordinatesBatch(
-        points, ker_layer_.get(), &new_blks, &covered_blks);
-    for (const voxblox::BlockIndex& idx : new_blks)
+    utils::allocateBlocksByCoordinatesAndRemove(points, ker_layer_.get(), &new_blks, &covered_blks);
+    if (new_blks.size() != 0)
     {
-      LOG(WARNING) << "Block id = \n" << idx;
+      kblk_idxs_to_recompute_.clear();
+      kblk_idxs_to_update_.clear();   
     }
     int n_masked = 0;
     if (options_.use_collision_checker_)
@@ -563,6 +564,39 @@ void ActMap<T>::getBestViewsAt(const size_t cam_id,
 }
 
 template <typename T>
+void ActMap<T>::getSpecificViewInfoAt(const size_t cam_id,
+                                  const int samples_per_side,
+                                  const bool only_updated,
+                                  const rpg::Pose& curr_pose,
+                                  Eigen::Vector3d& curr_position,
+                                  Eigen::Vector3d& curr_view,
+                                  double& curr_value)
+{
+  std::lock_guard<std::mutex> ker_lock(ker_mutex_);
+  voxblox::BlockIndexList viz_blks;
+  if (only_updated)
+  {
+    viz_blks = accumulated_updated_kblk_idxs_;
+  }
+  else
+  {
+    // useful to have consistent color scale
+    ker_layer_->getAllAllocatedBlocks(&viz_blks);
+  }
+
+  utils::getSpecificViewInfo(*ker_layer_,
+                             viz_blks,
+                             vis_scores_[cam_id].k1(),
+                             vis_scores_[cam_id].k2(),
+                             vis_scores_[cam_id].k3(),
+                             samples_per_side,
+                             curr_pose,
+                             curr_position,
+                             curr_view,
+                             curr_value);
+}
+
+template <typename T>
 void ActMap<T>::activateBlocksByDistance(const Eigen::Vector3d& pos,
                                          const double thresh)
 {
@@ -626,4 +660,18 @@ void ActMap<InfoVoxel>::getBestViewsAt(
   LOG(WARNING) << "Best view visualization not supported for this kernel,"
                   " doing nothing.";
 }
+
+template <>
+void ActMap<InfoVoxel>::getSpecificViewInfoAt(const size_t cam_id,
+                                  const int samples_per_side,
+                                  const bool only_updated,
+                                  const rpg::Pose& curr_pose,
+                                  Eigen::Vector3d& curr_position,
+                                  Eigen::Vector3d& curr_view,
+                                  double& curr_value)
+{
+  LOG(WARNING) << "Best view visualization not supported for this kernel,"
+                  " doing nothing.";
+}
+
 }

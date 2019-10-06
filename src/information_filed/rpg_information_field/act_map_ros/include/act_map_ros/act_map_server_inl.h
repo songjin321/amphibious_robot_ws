@@ -16,7 +16,7 @@
 
 #include "act_map_ros/conversion_ros.h"
 #include "act_map_ros/params_reader.h"
-
+#include "act_map_msgs/ViewInformation.h"
 namespace act_map_ros
 {
 template <typename T>
@@ -189,6 +189,7 @@ void ActMapServer<T>::setupROS()
       "kernel_vox_best_views", 10);
   pub_markers_ = pnh_.advertise<visualization_msgs::Marker>("markers", 10);
 
+  pub_view_info_ = pnh_.advertise<act_map_msgs::ViewInformation>("view_info", 1);
   key_cmd_sub_ = nh_.subscribe<std_msgs::String>(
       "/act_map_cmd", 10, &ActMapServer::keyCmdCallback, this);
 }
@@ -324,6 +325,10 @@ void ActMapServer<T>::bodyPoseCallback(
   static rpg::Pose prev_added_Twb;
   rpg::Pose Twb;
   rosPoseToKindr(pose->pose, &Twb);
+  {
+    std::lock_guard<std::mutex> lg(m_state);
+    Twc_curr = Twb;
+  }
   act_map_->addCenterToKernelLayer(Twb);
   if (options_.only_activate_nearby_kernel_blks_)
   {
@@ -448,6 +453,23 @@ void ActMapServer<T>::visualizeKerBestViews() const
   LOG(INFO) << "Computing " << vox_cs.size() << " views for visulization took "
           << timer.stop() * 1000 << " ms.";
 
+  // 计算当前视角的信息量
+  Eigen::Vector3d curr_position;
+  Eigen::Vector3d curr_view;
+  double curr_value;
+  act_map_->getSpecificViewInfoAt(0,
+                                  options_.viz_bview_samples_per_side_,
+                                  options_.viz_bview_last_updated_,
+                                  Twc_curr,
+                                  curr_position,
+                                  curr_view,
+                                  curr_value
+                                  );
+  vox_cs.push_back(curr_position);
+  bviews.push_back(curr_view);
+  values.push_back(curr_value);
+  global_idxs.emplace_back();
+
   visualization_msgs::MarkerArray ma;
   std::vector<size_t> ids;
   if (options_.viz_bview_use_unique_id_)
@@ -467,7 +489,7 @@ void ActMapServer<T>::visualizeKerBestViews() const
   }
 
   std::vector<std_msgs::ColorRGBA> colors(vox_cs.size());
-  if (!options_.viz_bview_fixed_color_ && vox_cs.size() > 10)
+  if (!options_.viz_bview_fixed_color_)
   {
     std::vector<double> intensities;
     scaleLog10Ntimes(values,
@@ -486,5 +508,21 @@ void ActMapServer<T>::visualizeKerBestViews() const
   directionsToArrowsArray(
       vox_cs, bviews, ids, colors, options_.viz_bview_size_, &ma);
   kvox_bestviews_pub_.publish(ma);
+
+  // publish view information
+  act_map_msgs::ViewInformation view_info;
+  view_info.header.frame_id = kWorldFrame;
+  view_info.position.x = vox_cs[0][0];
+  view_info.position.y = vox_cs[0][1];
+  view_info.position.z = vox_cs[0][2];
+  view_info.max_info_view.x = bviews[0][0];
+  view_info.max_info_view.y = bviews[0][1];
+  view_info.max_info_view.z = bviews[0][2];
+  view_info.max_info_view_value = values[0];
+  view_info.curr_view.x = bviews[1][0];
+  view_info.curr_view.y = bviews[1][1];
+  view_info.curr_view.z = bviews[1][2];
+  view_info.curr_view_value = values[1];
+  pub_view_info_.publish(view_info);
 }
 }

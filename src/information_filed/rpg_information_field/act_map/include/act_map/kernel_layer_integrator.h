@@ -364,7 +364,7 @@ void KernelLayerIntegrator<KVType>::updateKernelLayerFromPoints(
           blk_ptr->setVoxDataValid(true, vox_i);
         }
       }
-      LOG(ERROR) << "recompute_occ_point_size = " << recompute_occ_point_size;
+      // LOG(ERROR) << "recompute_occ_point_size = " << recompute_occ_point_size;
     }
     if (blk_updated)
     {

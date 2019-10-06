@@ -308,6 +308,31 @@ void allocateBlocksByCoordinatesBatch(const act_map::Vec3dVec& points_w,
   }
 }
 
+template <typename T>
+void allocateBlocksByCoordinatesAndRemove(const act_map::Vec3dVec& points_w,
+                                          voxblox::Layer<T>* layer,
+                                          voxblox::BlockIndexList* newly_added_blks,
+                                          voxblox::IndexSet* covered_blks)
+{
+  CHECK_NOTNULL(newly_added_blks);
+  CHECK_NOTNULL(layer);
+  newly_added_blks->clear();
+
+  for (const Eigen::Vector3d& pt : points_w)
+  {
+    voxblox::BlockIndex blk_idx = layer->computeBlockIndexFromCoordinates(pt);
+    if (!layer->getBlockPtrByIndex(blk_idx))
+    {
+      // 先直接删除所有blocks
+      layer->removeAllBlocks(); 
+      //
+      layer->allocateBlockPtrByIndex(blk_idx);
+      newly_added_blks->push_back(blk_idx);
+    }
+    covered_blks->insert(blk_idx);
+  }
+}
+
 // non-templated functions
 // basically integrate points multiple times
 void setPointsInOccupancyLayer(const Eigen::Matrix3Xd& points,
@@ -332,6 +357,17 @@ void getBestViewsSample(const act_map::TraceLayer& tl,
                         act_map::Vec3dVec* best_views,
                         std::vector<double>* values,
                         voxblox::LongIndexVector* global_idxs);
+
+void getSpecificViewInfo(const act_map::TraceLayer& tl,
+                         const voxblox::BlockIndexList &blk_idxs,
+                         const double k1,
+                         const double k2,
+                         const double k3,
+                         const int samples_per_side,
+                         const rpg::Pose &curr_pose,
+                         Eigen::Vector3d &curr_position,
+                         Eigen::Vector3d &curr_view,
+                         double &curr_value);
 
 struct CollisionCheckerOptions
 {

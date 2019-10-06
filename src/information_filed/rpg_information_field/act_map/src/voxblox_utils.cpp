@@ -182,6 +182,47 @@ void getBestViewsSample(const act_map::TraceLayer& tl,
   }
 }
 
+void getSpecificViewInfo(const act_map::TraceLayer &tl,
+                         const voxblox::BlockIndexList &blk_idxs,
+                         const double k1,
+                         const double k2,
+                         const double k3,
+                         const int samples_per_side,
+                         const rpg::Pose &curr_pose,
+                         Eigen::Vector3d &curr_position,
+                         Eigen::Vector3d &curr_view,
+                         double &curr_value)
+{
+  // 为rot_samples赋值为当前值 
+  rpg::RotationVec rot_samples;
+  rot_samples.push_back(curr_pose.getRotation());
+  // 在我们的应用中为了节约计算量，只有一个block，
+  // 每个block中只有一个voxel
+  CHECK_EQ(blk_idxs.size(), 1);
+  for (const voxblox::BlockIndex blk_idx : blk_idxs)
+  {
+    const TraceBlock& blk = tl.getBlockByIndex(blk_idx);
+    if (!blk.activated())
+    {
+      continue;
+    }
+    voxblox::VoxelIndexList sub_vox_idxs;
+    utils::subsampleVoxelIndices(blk, samples_per_side, &sub_vox_idxs);
+    for (const voxblox::VoxelIndex& vox_idx : sub_vox_idxs)
+    {
+      size_t lin_idx = blk.computeLinearIndexFromVoxelIndex(vox_idx);
+      if (!blk.isVoxDataValid(lin_idx))
+      {
+        continue;
+      }
+      const TraceVoxel& vox = blk.getVoxelByVoxelIndex(vox_idx);
+      curr_position = blk.computeCoordinatesFromVoxelIndex(vox_idx);
+      optim_orient::getOptimViewFromTraceKernels(
+          rot_samples, k1, k2, k3, vox.K1, vox.K2, vox.K3, &curr_view, &curr_value);
+    }
+  }  
+}
+
 CollisionRes
 doesPointCollideWithOccLayer(const OccupancyLayer& occ_layer,
                              const Eigen::Vector3d pt_w,

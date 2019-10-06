@@ -89,7 +89,6 @@ void directionsToArrowsArray(const act_map::Vec3dVec& s_points,
   CHECK_EQ(s_points.size(), ids.size());
   CHECK_EQ(s_points.size(), colors.size());
   CHECK_NOTNULL(ma);
-
   for (size_t i = 0; i < s_points.size(); i++)
   {
     visualization_msgs::Marker m;
@@ -98,7 +97,7 @@ void directionsToArrowsArray(const act_map::Vec3dVec& s_points,
     m.id = ids[i];
     m.type = visualization_msgs::Marker::ARROW;
     m.color = colors[i];
-    m.action = visualization_msgs::Marker::ADD;
+    m.action = visualization_msgs::Marker::MODIFY;
 
     const double shaft_dia = 0.2 * size;
     const double arrow_len = 10 * shaft_dia;

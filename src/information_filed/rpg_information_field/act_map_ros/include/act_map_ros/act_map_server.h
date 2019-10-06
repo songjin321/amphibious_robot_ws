@@ -142,6 +142,11 @@ private:
   ros::Publisher pub_markers_;
   bool pub_kvox_bestview_ = false;
   bool pub_kernel_blk_centers_ = false;
+
+  // 
+  ros::Publisher pub_view_info_;
+  rpg::Pose Twc_curr; // 当前帧相机相对于世界坐标系的坐标变换
+  std::mutex m_state;
 };
 using TraceMapServer = ActMapServer<act_map::TraceVoxel>;
 using InfoMapServer = ActMapServer<act_map::InfoVoxel>;
