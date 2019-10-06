@@ -1,5 +1,5 @@
 #include "visualization.h"
-
+#include <sensor_msgs/point_cloud_conversion.h>
 using namespace ros;
 using namespace Eigen;
 ros::Publisher pub_odometry, pub_latest_odometry;
@@ -26,10 +26,10 @@ void registerPub(ros::NodeHandle &n)
     pub_path = n.advertise<nav_msgs::Path>("path", 1000);
     pub_relo_path = n.advertise<nav_msgs::Path>("relocalization_path", 1000);
     pub_odometry = n.advertise<nav_msgs::Odometry>("odometry", 1000);
-    pub_point_cloud = n.advertise<sensor_msgs::PointCloud>("point_cloud", 1000);
+    pub_point_cloud = n.advertise<sensor_msgs::PointCloud2>("point_cloud", 1000);
     pub_margin_cloud = n.advertise<sensor_msgs::PointCloud>("history_cloud", 1000);
     pub_key_poses = n.advertise<visualization_msgs::Marker>("key_poses", 1000);
-    pub_camera_pose = n.advertise<nav_msgs::Odometry>("camera_pose", 1000);
+    pub_camera_pose = n.advertise<geometry_msgs::PoseStamped>("camera_pose", 1000);
     pub_camera_pose_visual = n.advertise<visualization_msgs::MarkerArray>("camera_pose_visual", 1000);
     pub_keyframe_pose = n.advertise<nav_msgs::Odometry>("keyframe_pose", 1000);
     pub_keyframe_point = n.advertise<sensor_msgs::PointCloud>("keyframe_point", 1000);
@@ -217,6 +217,7 @@ void pubCameraPose(const Estimator &estimator, const std_msgs::Header &header)
         Vector3d P = estimator.Ps[i] + estimator.Rs[i] * estimator.tic[0];
         Quaterniond R = Quaterniond(estimator.Rs[i] * estimator.ric[0]);
 
+        /*
         nav_msgs::Odometry odometry;
         odometry.header = header;
         odometry.header.frame_id = "world";
@@ -227,6 +228,17 @@ void pubCameraPose(const Estimator &estimator, const std_msgs::Header &header)
         odometry.pose.pose.orientation.y = R.y();
         odometry.pose.pose.orientation.z = R.z();
         odometry.pose.pose.orientation.w = R.w();
+        */
+        geometry_msgs::PoseStamped odometry;
+        odometry.header = header;
+        odometry.header.frame_id = "world";
+        odometry.pose.position.x = P.x();
+        odometry.pose.position.y = P.y();
+        odometry.pose.position.z = P.z();
+        odometry.pose.orientation.x = R.x();
+        odometry.pose.orientation.y = R.y();
+        odometry.pose.orientation.z = R.z();
+        odometry.pose.orientation.w = R.w();
 
         pub_camera_pose.publish(odometry);
 
@@ -262,7 +274,9 @@ void pubPointCloud(const Estimator &estimator, const std_msgs::Header &header)
         p.z = w_pts_i(2);
         point_cloud.points.push_back(p);
     }
-    pub_point_cloud.publish(point_cloud);
+    sensor_msgs::PointCloud2 output;
+    sensor_msgs::convertPointCloudToPointCloud2(point_cloud, output);
+    pub_point_cloud.publish(output);
 
 
     // pub margined potin
