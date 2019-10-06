@@ -166,13 +166,17 @@ getMeasurements()
         image = ptr->image;
     else 
         LOG(WARNING) << "unclear image encode type";
+
+#ifdef SHOW_TRACK_IMAGE
     m_estimator.lock();
     if (estimator.image_buf.size() > 200)
         estimator.image_buf.pop_front();
     estimator.image_buf.push_back({img_msg->header, image});
     m_estimator.unlock();
+#endif
 
 #ifdef DETECT_ORB
+    cout << "begin detect orb feature " << endl;
     std::vector<cv::KeyPoint>   keypoints;     // keypoints in current frame
     cv::Mat                     descriptors;   // descriptor in current frame 
     
@@ -418,7 +422,8 @@ int main(int argc, char **argv)
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug);
     readParameters(n);
     estimator.setParameter();
-    
+    feature_detector= cv::ORB::create(num_of_features, scale_factor, level_pyramid);
+    ORBSLAM2_feature_detector = new ORB_SLAM2::ORBextractor(num_of_features,scale_factor,level_pyramid,fIniThFAST,fMinThFAST);    
 #ifdef EIGEN_DONT_PARALLELIZE
     ROS_DEBUG("EIGEN_DONT_PARALLELIZE");
 #endif
@@ -431,7 +436,7 @@ int main(int argc, char **argv)
     ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
     ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
     ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
-    // ros::Subscriber sub_raw_image = n.subscribe(IMAGE_TOPIC, 100, img_callback); // save image for show
+    ros::Subscriber sub_raw_image = n.subscribe(IMAGE_TOPIC, 100, img_callback); // save image for show
     std::thread measurement_process{process};
     ros::spin();
 
