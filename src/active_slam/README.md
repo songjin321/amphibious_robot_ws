@@ -14,6 +14,7 @@ active slam的效果：机器人主动对环境进行探索
 信息场计算的视角信息值 话题名称： /act_map/view_info 话题类型： act_map_msgs::ViewInformation
 
 view_controller发布的当前相机在机器人坐标系下的视角 话题名称： /view_robot_camera_curr 话题类型： geometry_msgs::Vector3
+
 2. 发布的信息
 
 计算出的最优视角，用于可视化 话题名称：/active_slam_node/best_view 话题类型: visualization_msgs::Marker

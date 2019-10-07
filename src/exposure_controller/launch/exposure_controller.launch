@@ -1,0 +1,4 @@
+<launch>
+    <node name="exposure_node" pkg="exposure_controller" type="exposure_node" output="screen">
+    </node>
+</launch>

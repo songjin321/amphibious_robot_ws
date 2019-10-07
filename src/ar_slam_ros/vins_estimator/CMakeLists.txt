@@ -19,9 +19,6 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(OpenCV REQUIRED)
 
-message(WARNING "OpenCV_VERSION: ${OpenCV_VERSION}")
-message(WARNING "OpenCV_Path: ${OpenCV_INCLUDE_DIRS}")
-
 find_package(Ceres REQUIRED)
 
 include_directories(${catkin_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS})
