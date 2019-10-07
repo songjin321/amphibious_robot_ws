@@ -330,12 +330,7 @@ void ActMapServer<T>::bodyPoseCallback(
     Twc_curr = Twb;
   }
   act_map_->addCenterToKernelLayer(Twb);
-  if (options_.only_activate_nearby_kernel_blks_)
-  {
-    const double block_half_dia_len = act_map_->kerBlockHalfDiagonal();
-    act_map_->activateBlocksByDistance(Twb.getPosition(),
-                                        options_.kernel_blks_activate_dist_);
-  }
+
   /*
   if ((Twb.getPosition() - prev_added_Twb.getPosition()).norm() >
       options_.kernel_expand_dist_thresh_)

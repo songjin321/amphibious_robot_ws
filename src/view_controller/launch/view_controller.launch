@@ -1,0 +1,4 @@
+<launch>
+    <node name="view_controller_server" pkg="view_controller" type="view_controller_server" output="screen">
+    </node>
+</launch>

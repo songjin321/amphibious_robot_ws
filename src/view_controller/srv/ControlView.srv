@@ -1,0 +1,3 @@
+geometry_msgs/Vector3 best_view
+---
+bool is_finished
