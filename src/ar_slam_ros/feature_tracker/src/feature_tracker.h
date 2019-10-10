@@ -16,6 +16,8 @@
 #include "parameters.h"
 #include "tic_toc.h"
 #include "BRIEF.h"
+#include "cudaImage.h"
+#include "cudaSift.h"
 using namespace std;
 using namespace camodocal;
 using namespace Eigen;
@@ -64,4 +66,7 @@ class FeatureTracker
     static int n_id;
     cv::Mat descriptors;
     DVision::BRIEF brief_feature_detector;
+    SiftData siftData;
+    float initBlur = 1.0f;
+    float thresh = 1.0f;
 };
