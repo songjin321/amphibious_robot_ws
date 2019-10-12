@@ -239,8 +239,11 @@ int main(int argc, char **argv)
     readParameters(n);
     ROS_DEBUG("Hello feature tracker!");
     for (int i = 0; i < NUM_OF_CAM; i++)
+    {
         trackerData[i].readIntrinsicParameter(CAM_NAMES[i]);
-
+        trackerData[i].Init();
+    }
+ 
     if (FISHEYE)
     {
         for (int i = 0; i < NUM_OF_CAM; i++)

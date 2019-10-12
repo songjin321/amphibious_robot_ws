@@ -1,5 +1,9 @@
 #include "parameters.h"
 
+double initBlur;
+double thresh;
+int nOctaveLayers;
+
 std::string IMAGE_TOPIC;
 std::string IMU_TOPIC;
 std::vector<std::string> CAM_NAMES;
@@ -45,6 +49,10 @@ void readParameters(ros::NodeHandle &n)
     }
     std::string VINS_FOLDER_PATH = readParam<std::string>(n, "vins_folder");
 
+    initBlur = fsSettings["initBlur"];  // sift init blur
+    thresh = fsSettings["thresh"];   
+    nOctaveLayers = fsSettings["nOctaveLayers"];
+    
     fsSettings["image_topic"] >> IMAGE_TOPIC;
     fsSettings["imu_topic"] >> IMU_TOPIC;
     MAX_CNT = fsSettings["max_cnt"];

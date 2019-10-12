@@ -155,7 +155,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
         }
     }
     cout << "good matches: " << candidate_map.size() << endl;
-    // candidate_map.clear();
+    candidate_map.clear(); // 加上这一句就不会添加约束项
     // 根据匹配结果处理特征点
     match_show.clear();
     for (int i = 0; i < (int)candidate_feature.size(); i++)
@@ -404,6 +404,8 @@ void FeatureManager::removeBackShiftDepth(Eigen::Matrix3d marg_R, Eigen::Vector3
         {
             Eigen::Vector3d uv_i = it->feature_per_frame[0].point;
             it->feature_per_frame.erase(it->feature_per_frame.begin());
+            for (auto feature_frame : it->feature_per_frame)
+                feature_frame.offset--;
             if (it->feature_per_frame.size() < 2)
             {
                 feature.erase(it);
@@ -443,6 +445,8 @@ void FeatureManager::removeBack()
         else
         {
             it->feature_per_frame.erase(it->feature_per_frame.begin());
+            for (auto feature_frame : it->feature_per_frame)
+                feature_frame.offset--;
             if (it->feature_per_frame.size() == 0)
                 feature.erase(it);
         }
@@ -465,6 +469,7 @@ void FeatureManager::removeFront(int frame_count)
             if (it->endFrame() < frame_count - 1)
                 continue;
             it->feature_per_frame.erase(it->feature_per_frame.begin() + j);
+            it->feature_per_frame[j].offset--;
             if (it->feature_per_frame.size() == 0)
                 feature.erase(it);
         }

@@ -18,10 +18,11 @@
 #include "BRIEF.h"
 #include "cudaImage.h"
 #include "cudaSift.h"
+#include "opencv2/xfeatures2d.hpp"
 using namespace std;
 using namespace camodocal;
 using namespace Eigen;
-
+using namespace cv;
 bool inBorder(const cv::Point2f &pt);
 
 void reduceVector(vector<cv::Point2f> &v, vector<uchar> status);
@@ -31,6 +32,8 @@ class FeatureTracker
 {
   public:
     FeatureTracker();
+
+    void Init();
 
     void readImage(const cv::Mat &_img,double _cur_time);
 
@@ -67,6 +70,5 @@ class FeatureTracker
     cv::Mat descriptors;
     DVision::BRIEF brief_feature_detector;
     SiftData siftData;
-    float initBlur = 1.0f;
-    float thresh = 1.0f;
+    Ptr<Feature2D> f2d = xfeatures2d::SIFT::create();
 };

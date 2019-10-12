@@ -2,6 +2,10 @@
 #include <ros/ros.h>
 #include <opencv2/highgui/highgui.hpp>
 
+extern double initBlur;
+extern double thresh;
+extern int nOctaveLayers;
+
 extern int ROW;
 extern int COL;
 extern int FOCAL_LENGTH;

@@ -778,7 +778,9 @@ void Estimator::optimization()
 
         for (auto &it_per_frame : it_per_id.feature_per_frame)
         {
+            // imu_j++;
             imu_j = it_per_id.start_frame + it_per_frame.offset;
+            // cout << "imu_j = " << imu_j << " start_frame = " << it_per_id.start_frame << " offset = " << it_per_frame.offset << endl;
             if (imu_i == imu_j)
             {
                 continue;

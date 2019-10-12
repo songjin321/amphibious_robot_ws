@@ -90,6 +90,16 @@ void FeatureTracker::addPoints(cv::Mat n_pts_descriptors)
     ROS_DEBUG("add point success!");
 }
 
+void FeatureTracker::Init()
+{
+    // 将第一次初始化gpu放在这,因为第一次检测sift需要接近1s左右
+    CudaImage img;
+    cv::Mat temp(512, 512, CV_32FC1, cv::Scalar(0.5));
+    img.Allocate(512, 512, iAlignUp(512, 128), false, NULL, (float *)temp.data);
+    img.Download();
+    ExtractSift(siftData, img, 5, initBlur, thresh, 1.0f, false);
+}
+
 void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
 {
     cv::Mat img;
@@ -155,6 +165,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
         ROS_DEBUG("detect feature begins");
         TicToc t_cal_feature;
         int n_max_cnt = MAX_CNT - static_cast<int>(forw_pts.size());
+        // n_max_cnt = 150; // for debug
         cv::Mat n_pts_descriptors;
         if (n_max_cnt > 0)
         {
@@ -164,34 +175,34 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                 cout << "mask type wrong " << endl;
             if (mask.size() != forw_img.size())
                 cout << "wrong size " << endl;
-            // cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.01, MIN_DIST, mask);
-            // 使用sift计算描述子，我们提取尽可能多的描述子,阈值设置到1.0f
-        
+            /*
+            cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.01, MIN_DIST, mask);
+            for (int i=0; i < n_pts.size(); i++)
+            {
+                cv::Mat descriptor(1, 128, CV_32F);
+                n_pts_descriptors.push_back(descriptor);
+            }
+            */
+            
+            std::vector<std::pair<cv::KeyPoint, cv::Mat> > coarse_keypoints_descriptors;
+            std::vector<std::pair<cv::KeyPoint, cv::Mat>> fine_keypoints_descriptors;
+              
             cv::Mat limg;
             forw_img.convertTo(limg, CV_32FC1);
             unsigned int w = limg.cols;
             unsigned int h = limg.rows;
+
             CudaImage img;
             img.Allocate(w, h, iAlignUp(w, 128), false, NULL, (float *)limg.data);
             img.Download();
-            float *memoryTmp = AllocSiftTempMemory(w, h, 5, false);
-            ExtractSift(siftData, img, 5, initBlur, thresh, 0.0f, false, memoryTmp);
-            FreeSiftTempMemory(memoryTmp);
-            std::cout << "Number of coarse sift features: " << siftData.numPts << std::endl;
-
-            // 这部分算法来自cv::goodFeatureToTrack
-            // 对每一个点如果其MIN_DIST距离内有比其响应强的，则不考虑这个点
-            // 如果这个点在mask中，也不考虑这个点
-            // 对最后的点，我们考虑scale大的，即宏观特征，而不是细节特征,保证点数不超过MAX_CNT个
-            std::vector<std::pair<cv::KeyPoint, cv::Mat> > coarse_keypoints_descriptors;
-            std::vector<std::pair<cv::KeyPoint, cv::Mat>> fine_keypoints_descriptors;
+            ExtractSift(siftData, img, 5, initBlur, thresh, 0.0f, false);
             SiftPoint *sift_points = siftData.h_data;
             for (size_t i = 0; i < siftData.numPts; i++)
             {
                 cv::KeyPoint keypoint;
                 keypoint.pt.x = sift_points[i].xpos;
                 keypoint.pt.y = sift_points[i].ypos;
-                keypoint.response = sift_points[i].score;
+                keypoint.response = sift_points[i].sharpness;
                 keypoint.angle = sift_points[i].orientation;
                 keypoint.octave = sift_points[i].scale;
 
@@ -203,13 +214,28 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                 coarse_keypoints_descriptors.push_back({keypoint, descriptor});
             }
             
+            // opencv sift detection
+            /*
+            vector<KeyPoint> sift_keypoints_opencv;
+            f2d->detect(forw_img, sift_keypoints_opencv);
+            for (auto keypoint : sift_keypoints_opencv)
+            {
+                cv::Mat descriptor(1, 128, CV_32F);
+
+                coarse_keypoints_descriptors.push_back({keypoint, descriptor});
+            }
+            */
+            // 这部分算法来自cv::goodFeatureToTrack
+            // 对每一个点如果其MIN_DIST距离内有比其响应强的，则不考虑这个点
+            // 如果这个点在mask中，也不考虑这个点
+            // 对最后的点，我们考虑scale大的，即宏观特征，而不是细节特征,保证点数不超过MAX_CNT个
             // 按照响应从大到小排序
             std::sort(coarse_keypoints_descriptors.begin(), coarse_keypoints_descriptors.end(), 
             [](const std::pair<cv::KeyPoint, cv::Mat>& temp_1, const std::pair<cv::KeyPoint, cv::Mat>& temp_2){
                 return temp_1.first.response > temp_2.first.response;
             });
             auto minDistance = MIN_DIST;
-            size_t maxCorners = MAX_CNT;
+            size_t maxCorners = n_max_cnt;
             size_t ncorners = 0;
             if (minDistance >= 1)
             {
@@ -269,6 +295,8 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
 
                     if (good)
                     {
+                        if (mask.at<uchar>(cv::Point2f((float)x, (float)y)) == 0)
+                            continue;
                         grid[y_cell * grid_width + x_cell].push_back(cv::Point2f((float)x, (float)y));
 
                         fine_keypoints_descriptors.push_back(keypoint_descriptor);
@@ -296,6 +324,15 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                 n_pts.push_back(cv::Point2f(keypoint_descriptor.first.pt.x, keypoint_descriptor.first.pt.y));
                 n_pts_descriptors.push_back(keypoint_descriptor.second.clone());
             }
+            
+            // draw it 
+            /*
+            cv::Mat drawImg = forw_img.clone();
+            for (auto pt : n_pts)
+                cv::circle(drawImg, pt, 2, cv::Scalar(0, 255, 0), 2);
+            cv::imshow("Detected Sift Feature", drawImg);
+            cv::waitKey(2);
+            */
         }
         else
         {

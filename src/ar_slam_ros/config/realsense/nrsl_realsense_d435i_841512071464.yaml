@@ -42,8 +42,8 @@ extrinsicTranslation: !!opencv-matrix
    data: [0.07494282, -0.01077138, -0.00641822]
 
 #feature traker paprameters
-max_cnt: 150            # max feature number in feature tracking
-min_dist: 25            # min distance between two features 
+max_cnt: 200            # max feature number in feature tracking
+min_dist: 30            # min distance between two features 
 freq: 10                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
 F_threshold: 1.0        # ransac threshold (pixel)
 show_track: 1           # publish tracking image as topic
@@ -87,3 +87,8 @@ scale_factor: 1.2
 level_pyramid: 8
 fIniThFAST: 20
 fMinThFAST: 7
+
+#SIFT
+initBlur: 1.6
+thresh: 1.0
+nOctaveLayers: 3
