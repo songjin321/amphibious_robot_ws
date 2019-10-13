@@ -132,25 +132,50 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
     ROS_DEBUG("Solving %d", frame_count);
     ROS_DEBUG("number of feature: %d", f_manager.getFeatureCount());
     Headers[frame_count] = header;
+    
+    ImageFrame imageframe(image, header.stamp.toSec());
+    imageframe.pre_integration = tmp_pre_integration;
+    all_image_frame.insert(make_pair(header.stamp.toSec(), imageframe));
+    tmp_pre_integration = new IntegrationBase{acc_0, gyr_0, Bas[frame_count], Bgs[frame_count]};
+
     // 画图显示匹配结果
-    /*
-    if (!f_manager.match_show.empty())
+    // if (!f_manager.match_show.empty())
     {
         // 获取window+1张原图，用于显示
-        std::vector<cv::Mat> show_img(WINDOW_SIZE + 1);
+        std::vector<cv::Mat> show_imgs;
         int j = 0;
         for (auto header_image : image_buf)
         {
+            // cout << setprecision(16) << std::fixed << "header images stamp = " << header_image.first.stamp.toSec() << " header " 
+            // << j << " stamp = " <<  Headers[j].stamp.toSec() << endl;
             if (header_image.first.stamp.toSec() == Headers[j].stamp.toSec())
             {
-                show_img.push_back(header_image.second);
+                show_imgs.push_back(header_image.second);
                 j++;
                 if (j > WINDOW_SIZE)
                     break;
             }
         }
-
+        cout << "show_imgs size = " << show_imgs.size() << endl;
+        if (show_imgs.size() == WINDOW_SIZE+1)
+        {
         // 画图
+        // 对每幅图左上角打上时间戳，画上检测的特征点和id号
+        for(int i = 0; i < show_imgs.size(); i++)
+        {
+            auto iter_header_image = all_image_frame.find(Headers[i].stamp.toSec());
+            for (auto id_point : iter_header_image->second.points)
+            {
+                cv::Point2f pt(id_point.second[0].second[3], id_point.second[0].second[4]);
+                cv::circle(show_imgs[i], pt, 2, cv::Scalar(0, 255, 0), 2);
+                char name[10];
+                sprintf(name, "%d", id_point.first);
+                cv::putText(show_imgs[i], name, pt, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0));
+            }
+            cv::putText(show_imgs[i], std::to_string(Headers[i].stamp.toSec()), cv::Point2f(10.0, 15.0), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255));       
+        }
+
+        /*
         for(auto iter_feature : f_manager.match_show)
         {
             // 画新检测的特征点
@@ -174,13 +199,24 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
                 cv::putText(show_img[image_index], std::to_string(id), pts, cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255, 255));
             }
         }
+        */
+        // 把show_imgs给整合成一张图片
+        cv::Mat show_image;
+        std::vector<cv::Mat> show_imgs_first_row(show_imgs.begin(), show_imgs.begin()+WINDOW_SIZE/2);
+        std::vector<cv::Mat> show_imgs_second_row(show_imgs.begin()+WINDOW_SIZE/2, show_imgs.end()-1);
+        cv::Mat first_row_image, sencod_row_image;
+        cv::hconcat(show_imgs_first_row, first_row_image);
+        cv::hconcat(show_imgs_second_row, sencod_row_image);
+        cv::vconcat(first_row_image, sencod_row_image, show_image);
 
+
+        // 画tracks
+
+
+        cv::imshow("SlidingWindowImages", show_image);
+        cv::waitKey(2);
+        }
     }
-    */
-    ImageFrame imageframe(image, header.stamp.toSec());
-    imageframe.pre_integration = tmp_pre_integration;
-    all_image_frame.insert(make_pair(header.stamp.toSec(), imageframe));
-    tmp_pre_integration = new IntegrationBase{acc_0, gyr_0, Bas[frame_count], Bgs[frame_count]};
 
     if(ESTIMATE_EXTRINSIC == 2)
     {

@@ -3,6 +3,7 @@
 double initBlur;
 double thresh;
 int nOctaveLayers;
+double scale_thresh;
 
 std::string IMAGE_TOPIC;
 std::string IMU_TOPIC;
@@ -52,7 +53,8 @@ void readParameters(ros::NodeHandle &n)
     initBlur = fsSettings["initBlur"];  // sift init blur
     thresh = fsSettings["thresh"];   
     nOctaveLayers = fsSettings["nOctaveLayers"];
-    
+    scale_thresh = fsSettings["scale_thresh"];
+
     fsSettings["image_topic"] >> IMAGE_TOPIC;
     fsSettings["imu_topic"] >> IMU_TOPIC;
     MAX_CNT = fsSettings["max_cnt"];

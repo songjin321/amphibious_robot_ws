@@ -5,6 +5,7 @@
 extern double initBlur;
 extern double thresh;
 extern int nOctaveLayers;
+extern double scale_thresh;
 
 extern int ROW;
 extern int COL;

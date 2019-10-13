@@ -6,7 +6,7 @@ int FeaturePerId::endFrame()
 }
 
 FeatureManager::FeatureManager(Matrix3d _Rs[])
-    : Rs(_Rs), matcher_flann(new cv::flann::LshIndexParams(5, 10, 2))
+    : Rs(_Rs)
 {
     for (int i = 0; i < NUM_OF_CAM; i++)
         ric[i].setIdentity();
@@ -97,6 +97,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
         if (it == feature.end())
         {
             // 将这个点加入候选匹配集合
+            cout << "candidate feature id = " << feature_id << endl;
             candidate_feature.push_back(std::make_tuple(feature_id, descriptors.row(index_des), f_per_fra));
         }
         else
@@ -142,7 +143,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
     **/
     for (cv::DMatch &m : matches)
     {
-        if (m.distance < 10)
+        if (m.distance < 0.05)
         {
             cout << "m.distance = " << m.distance << endl;
             cout << "good match " << " query id = " << std::get<0>(candidate_feature[m.queryIdx]);
@@ -178,6 +179,16 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
             {
                 if (iter_feature.feature_id == iter->second)
                 {
+                    // 修改image中对应元素的id
+                    if (image.find(iter->second) != image.end())
+                    {
+                        ROS_ERROR("error corresponds, because there is no matched point on the same picture");
+                        continue;
+                    }
+                    auto iter_image_id = image.find(std::get<0>(candidate_feature[i]));
+                    image.insert({iter->second, iter_image_id->second});
+                    image.erase(iter_image_id->first);
+
                     FeaturePerFrame f_per_frame = std::get<2>(candidate_feature[i]);
                     f_per_frame.offset = frame_count - iter_feature.start_frame;
                     iter_feature.feature_per_frame.push_back(f_per_frame);

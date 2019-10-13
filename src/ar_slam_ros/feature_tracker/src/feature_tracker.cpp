@@ -195,7 +195,8 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
             CudaImage img;
             img.Allocate(w, h, iAlignUp(w, 128), false, NULL, (float *)limg.data);
             img.Download();
-            ExtractSift(siftData, img, 5, initBlur, thresh, 0.0f, false);
+            ExtractSift(siftData, img, 5, initBlur, thresh, scale_thresh, false);
+            cout << "sift points size = " << siftData.numPts << endl;
             SiftPoint *sift_points = siftData.h_data;
             for (size_t i = 0; i < siftData.numPts; i++)
             {
@@ -204,8 +205,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                 keypoint.pt.y = sift_points[i].ypos;
                 keypoint.response = sift_points[i].sharpness;
                 keypoint.angle = sift_points[i].orientation;
-                keypoint.octave = sift_points[i].scale;
-
+                keypoint.octave = sift_points[i].edgeness; // 把边缘响应值赋值给octave
                 cv::Mat descriptor(1, 128, CV_32F);
                 for (size_t j = 0; j < 128; j++)
                 {

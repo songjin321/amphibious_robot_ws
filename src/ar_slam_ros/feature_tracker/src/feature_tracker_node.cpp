@@ -128,7 +128,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         // 发布的feature包括每个点的信息和对应的描述子
         feature_tracker::Feature feature;
         cv_bridge::CvImage cvimage_descriptor;
-        cvimage_descriptor.encoding = "mono8";
+        cvimage_descriptor.encoding = "32FC1";
         sensor_msgs::PointCloudPtr feature_points(new sensor_msgs::PointCloud);
         sensor_msgs::ChannelFloat32 id_of_point;
         sensor_msgs::ChannelFloat32 u_of_point;
@@ -235,7 +235,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "feature_tracker");
     ros::NodeHandle n("~");
-    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug);
+    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
     readParameters(n);
     ROS_DEBUG("Hello feature tracker!");
     for (int i = 0; i < NUM_OF_CAM; i++)
