@@ -139,7 +139,8 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
     tmp_pre_integration = new IntegrationBase{acc_0, gyr_0, Bas[frame_count], Bgs[frame_count]};
 
     // 画图显示匹配结果
-    // if (!f_manager.match_show.empty())
+    #ifdef SHOW_TRACK_IMAGE
+    if (!f_manager.match_show.empty())
     {
         // 获取window+1张原图，用于显示
         std::vector<cv::Mat> show_imgs;
@@ -213,11 +214,12 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
         // 画tracks
 
 
-        cv::imshow("SlidingWindowImages", show_image);
-        cv::waitKey(2);
+        //cv::imshow("SlidingWindowImages", show_image);
+        //cv::waitey(2);
         }
     }
-
+    #endif
+    
     if(ESTIMATE_EXTRINSIC == 2)
     {
         ROS_INFO("calibrating extrinsic param, rotation movement is needed");

@@ -126,7 +126,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
     cout << "query_dep rows = " << query_dep.rows << " query_dep cols = " << query_dep.cols << endl;
     if (train_dep.rows !=0 && query_dep.rows != 0)
     {
-        matcher_flann.match(query_dep, train_dep, matches);
+        matcher_flann.match(query_dep, train_dep, matches); //  annotation 这一句就不会添加约束项
         // cv::BFMatcher matcher(cv::NORM_HAMMING);
         // matcher.match(train_dep, query_dep, matches);
     }
@@ -156,7 +156,6 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
         }
     }
     cout << "good matches: " << candidate_map.size() << endl;
-    candidate_map.clear(); // 加上这一句就不会添加约束项
     // 根据匹配结果处理特征点
     match_show.clear();
     for (int i = 0; i < (int)candidate_feature.size(); i++)
