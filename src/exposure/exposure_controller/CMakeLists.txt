@@ -12,5 +12,11 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 cs_add_executable(exposure_node src/exposure_node.cpp)
 target_link_libraries(exposure_node ${OpenCV_LIBRARIES})
 
+cs_add_executable(camera_fastconer src/camera_fastconer.cpp)
+target_link_libraries(camera_fastconer ${OpenCV_LIBRARIES})
+
+cs_add_executable(camera_grad src/camera_grad.cpp)
+target_link_libraries(camera_grad ${OpenCV_LIBRARIES})
+
 cs_install()
 cs_export()
