@@ -218,9 +218,9 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
                     trackerData[i].m_camera->spaceToPlane(tmp_prev_un_pts, tmp_prev_uv);
                     cv::line(tmp_img, trackerData[i].cur_pts[j], cv::Point2f(tmp_prev_uv.x(), tmp_prev_uv.y()), cv::Scalar(255 , 0, 0), 1 , 8, 0);
                     */
-                    //char name[10];
-                    //sprintf(name, "%d", trackerData[i].ids[j]);
-                    //cv::putText(tmp_img, name, trackerData[i].cur_pts[j], cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+                    char name[10];
+                    sprintf(name, "%d", trackerData[i].ids[j]);
+                    cv::putText(tmp_img, name, trackerData[i].cur_pts[j], cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0));
                 }
             }
             //cv::imshow("vis", stereo_img);

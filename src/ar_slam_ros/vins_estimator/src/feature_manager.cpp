@@ -126,7 +126,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
     cout << "query_dep rows = " << query_dep.rows << " query_dep cols = " << query_dep.cols << endl;
     if (train_dep.rows !=0 && query_dep.rows != 0)
     {
-        matcher_flann.match(query_dep, train_dep, matches); //  annotation 这一句就不会添加约束项
+        matcher_flann.match(query_dep, train_dep, matches); 
         // cv::BFMatcher matcher(cv::NORM_HAMMING);
         // matcher.match(train_dep, query_dep, matches);
     }
@@ -174,25 +174,24 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
         else
         // 匹配上的，对应id的frame上加一个观测帧
         {
-            for(auto iter_feature : feature)
+            for(auto& iter_feature : feature)
             {
                 if (iter_feature.feature_id == iter->second)
                 {
                     // 修改image中对应元素的id
-                    if (image.find(iter->second) != image.end())
-                    {
-                        ROS_ERROR("error corresponds, because there is no matched point on the same picture");
-                        continue;
-                    }
                     auto iter_image_id = image.find(std::get<0>(candidate_feature[i]));
                     image.insert({iter->second, iter_image_id->second});
                     image.erase(iter_image_id->first);
 
                     FeaturePerFrame f_per_frame = std::get<2>(candidate_feature[i]);
                     f_per_frame.offset = frame_count - iter_feature.start_frame;
-                    iter_feature.feature_per_frame.push_back(f_per_frame);
+                    // iter_feature.feature_per_frame.push_back(f_per_frame);
                     last_track_num++;
-                    match_show.push_back({iter->first, &iter_feature});
+
+                    // for showing track
+                    auto iter_feature_for_match = iter_feature;
+                    iter_feature_for_match.feature_per_frame.push_back(f_per_frame);
+                    match_show.push_back({iter->first, iter_feature});
                     break;
                 }
             }
