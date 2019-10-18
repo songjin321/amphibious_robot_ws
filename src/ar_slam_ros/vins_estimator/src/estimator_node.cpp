@@ -171,7 +171,7 @@ getMeasurements()
     m_estimator.lock();
     if (estimator.image_buf.size() > 200)
         estimator.image_buf.pop_front();
-    estimator.image_buf.push_back({img_msg->header, image});
+    estimator.image_buf.push_back({img_msg->header, ptr->image});
     m_estimator.unlock();
 #endif
 

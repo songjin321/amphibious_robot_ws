@@ -20,7 +20,7 @@ const int WINDOW_SIZE = 10;
 const int NUM_OF_CAM = 1;
 const int NUM_OF_F = 1000;
 //#define UNIT_SPHERE_ERROR
-//#define _OPTITRACK_
+//#define SHOW_TRACK_IMAGE
 //#define DETECT_ORB
 extern double INIT_DEPTH;
 extern double MIN_PARALLAX;
