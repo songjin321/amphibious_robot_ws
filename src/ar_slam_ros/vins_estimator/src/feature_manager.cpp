@@ -126,7 +126,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
     cout << "query_dep rows = " << query_dep.rows << " query_dep cols = " << query_dep.cols << endl;
     if (train_dep.rows !=0 && query_dep.rows != 0)
     {
-        matcher_flann.match(query_dep, train_dep, matches); 
+        // matcher_flann.match(query_dep, train_dep, matches); 
         // cv::BFMatcher matcher(cv::NORM_HAMMING);
         // matcher.match(train_dep, query_dep, matches);
     }
@@ -185,7 +185,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
 
                     FeaturePerFrame f_per_frame = std::get<2>(candidate_feature[i]);
                     f_per_frame.offset = frame_count - iter_feature.start_frame;
-                    // iter_feature.feature_per_frame.push_back(f_per_frame);
+                    iter_feature.feature_per_frame.push_back(f_per_frame);
                     last_track_num++;
 
                     // for showing track

@@ -167,13 +167,14 @@ getMeasurements()
     else 
         LOG(WARNING) << "unclear image encode type";
 
-#ifdef SHOW_TRACK_IMAGE
-    m_estimator.lock();
-    if (estimator.image_buf.size() > 200)
-        estimator.image_buf.pop_front();
-    estimator.image_buf.push_back({img_msg->header, ptr->image});
-    m_estimator.unlock();
-#endif
+    if(SHOW_TRACK_IMAGE)
+    {
+        m_estimator.lock();
+        if (estimator.image_buf.size() > 200)
+            estimator.image_buf.pop_front();
+        estimator.image_buf.push_back({img_msg->header, ptr->image});
+        m_estimator.unlock();
+    }
 
 #ifdef DETECT_ORB
     cout << "begin detect orb feature " << endl;

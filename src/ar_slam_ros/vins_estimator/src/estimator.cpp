@@ -139,104 +139,100 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
     tmp_pre_integration = new IntegrationBase{acc_0, gyr_0, Bas[frame_count], Bgs[frame_count]};
 
     // 画图显示匹配结果
-#ifdef SHOW_TRACK_IMAGE
-    // 获取window+1张原图，用于显示
-    std::vector<cv::Mat> show_imgs;
-    int j = 0;
-    for (auto header_image : image_buf)
+    if (SHOW_TRACK_IMAGE)
     {
-        // cout << setprecision(16) << std::fixed << "header images stamp = " << header_image.first.stamp.toSec() << " header "
-        // << j << " stamp = " <<  Headers[j].stamp.toSec() << endl;
-        if (header_image.first.stamp.toSec() == Headers[j].stamp.toSec())
+        // 获取window+1张原图，用于显示
+        std::vector<cv::Mat> show_imgs;
+        int j = 0;
+        for (auto header_image : image_buf)
         {
-            show_imgs.push_back(header_image.second);
-            j++;
-            if (j > WINDOW_SIZE)
-                break;
-        }
-    }
-    cout << "show_imgs size = " << show_imgs.size() << endl;
-    if (show_imgs.size() == WINDOW_SIZE + 1)
-    {
-        // 画图
-        // 对每幅图左上角打上时间戳，画上检测的特征点和id号,最后一张图片是修改之后的id号
-        for (int i = 0; i < show_imgs.size(); i++)
-        {
-            auto iter_header_image = all_image_frame.find(Headers[i].stamp.toSec());
-            for (auto id_point : iter_header_image->second.points)
+            // cout << setprecision(16) << std::fixed << "header images stamp = " << header_image.first.stamp.toSec() << " header "
+            // << j << " stamp = " <<  Headers[j].stamp.toSec() << endl;
+            if (header_image.first.stamp.toSec() == Headers[j].stamp.toSec())
             {
-                cv::Point2f pt(id_point.second[0].second[3], id_point.second[0].second[4]);
-                cv::circle(show_imgs[i], pt, 2, cv::Scalar(0, 255, 0), 2);
-                char name[10];
-                sprintf(name, "%d", id_point.first);
-                cv::putText(show_imgs[i], name, pt, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0));
+                show_imgs.push_back(header_image.second);
+                j++;
+                if (j > WINDOW_SIZE)
+                    break;
             }
-            cv::putText(show_imgs[i], std::to_string(Headers[i].stamp.toSec()), cv::Point2f(10.0, 15.0), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255));
         }
-
-        // 把show_imgs给整合成一张图片
-        cv::Mat show_image;
-        std::vector<cv::Mat> show_imgs_first_row(show_imgs.begin(), show_imgs.begin() + WINDOW_SIZE / 2);
-        std::vector<cv::Mat> show_imgs_second_row(show_imgs.begin() + WINDOW_SIZE / 2, show_imgs.end() - 1);
-        cv::Mat first_row_image, sencod_row_image, first_second_row_image, last_column;
-        cv::hconcat(show_imgs_first_row, first_row_image);
-        cv::hconcat(show_imgs_second_row, sencod_row_image);
-        cv::vconcat(first_row_image, sencod_row_image, first_second_row_image);
-        cv::Mat fill_black(show_imgs.back().size(), show_imgs.back().type(), cv::Scalar(1));
-        cv::vconcat(fill_black, show_imgs.back(), last_column);
-        cv::hconcat(first_second_row_image, last_column, show_image);
-        
-        // 画匹配结果
-        int image_width = show_imgs.back().cols;
-        int image_height = show_imgs.back().rows;
-        cout << " match_show size = " << f_manager.match_show.size() << endl;
-        for (auto old_id_featurePerID : f_manager.match_show)
+        cout << "show_imgs size = " << show_imgs.size() << endl;
+        if (show_imgs.size() == WINDOW_SIZE + 1)
         {
-            if (old_id_featurePerID.second.feature_per_frame.size() <= 2)
-                ROS_ERROR("this is impossible!");
-            // 计算一对匹配点位置
-            int first_point_index = old_id_featurePerID.second.start_frame 
-            + old_id_featurePerID.second.feature_per_frame.front().offset;
-            cout << " first_point_index = " << first_point_index << endl;
+            // 画图
+            // 对每幅图左上角打上时间戳，画上检测的特征点和id号,最后一张图片是修改之后的id号
+            for (int i = 0; i < show_imgs.size(); i++)
+            {
+                auto iter_header_image = all_image_frame.find(Headers[i].stamp.toSec());
+                for (auto id_point : iter_header_image->second.points)
+                {
+                    cv::Point2f pt(id_point.second[0].second[3], id_point.second[0].second[4]);
+                    cv::circle(show_imgs[i], pt, 2, cv::Scalar(0, 255, 0), 2);
+                    char name[10];
+                    sprintf(name, "%d", id_point.first);
+                    cv::putText(show_imgs[i], name, pt, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0));
+                }
+                cv::putText(show_imgs[i], std::to_string(Headers[i].stamp.toSec()), cv::Point2f(10.0, 15.0), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255));
+            }
 
-            int point1_y = image_height * first_point_index/5 + 
-            old_id_featurePerID.second.feature_per_frame.front().uv.y();
-            cout << "image_height = " << image_height << " image_width = " << image_width << endl;
-            cout << "first_point_index = " << first_point_index << " uv.x = " << 
-            old_id_featurePerID.second.feature_per_frame.front().uv.x() << " uv.y = " << 
-            old_id_featurePerID.second.feature_per_frame.front().uv.y() << endl;
+            // 把show_imgs给整合成一张图片
+            cv::Mat show_image;
+            std::vector<cv::Mat> show_imgs_first_row(show_imgs.begin(), show_imgs.begin() + WINDOW_SIZE / 2);
+            std::vector<cv::Mat> show_imgs_second_row(show_imgs.begin() + WINDOW_SIZE / 2, show_imgs.end() - 1);
+            cv::Mat first_row_image, sencod_row_image, first_second_row_image, last_column;
+            cv::hconcat(show_imgs_first_row, first_row_image);
+            cv::hconcat(show_imgs_second_row, sencod_row_image);
+            cv::vconcat(first_row_image, sencod_row_image, first_second_row_image);
+            cv::Mat fill_black(show_imgs.back().size(), show_imgs.back().type(), cv::Scalar(1));
+            cv::vconcat(fill_black, show_imgs.back(), last_column);
+            cv::hconcat(first_second_row_image, last_column, show_image);
 
-            int point1_x = image_width * first_point_index%5 + 
-            old_id_featurePerID.second.feature_per_frame.front().uv.x();
-            
-            int point2_x = image_width * WINDOW_SIZE / 2 + 
-            old_id_featurePerID.second.feature_per_frame.back().uv.x();
-            
-            int point2_y = image_height  + 
-            old_id_featurePerID.second.feature_per_frame.back().uv.y();
-            cout << "point1_x = " << point1_x << " point1_y = " << point1_y << 
-            " point2_x = " << point2_x << " point2_y = " << point2_y << endl;
-            // 画线连接匹配点
-            cv::line(show_image, cv::Point2i(point1_x, point1_y), cv::Point2i(point2_x, point2_y), cv::Scalar(255,0,0));
-        
-            // 把旧的id画在上面的图上
-            char name[10];
-            sprintf(name, "%d", old_id_featurePerID.first);
-            cv::Point2f pt(point2_x, point2_y-image_height);
-            cv::circle(show_image, pt, 2, cv::Scalar(0, 255, 0), 2);
-            cv::putText(show_image, name, pt, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0));
+            // 画匹配结果
+            int image_width = show_imgs.back().cols;
+            int image_height = show_imgs.back().rows;
+            cout << " match_show size = " << f_manager.match_show.size() << endl;
+            for (auto old_id_featurePerID : f_manager.match_show)
+            {
+                if (old_id_featurePerID.second.feature_per_frame.size() <= 2)
+                    ROS_ERROR("this is impossible!");
+                // 计算一对匹配点位置
+                int first_point_index = old_id_featurePerID.second.start_frame + old_id_featurePerID.second.feature_per_frame.front().offset;
+                cout << " first_point_index = " << first_point_index << endl;
 
-            // 把匹配的特征点在下面的图上标红
-            sprintf(name, "%d", old_id_featurePerID.second.feature_id);
-            cv::Point2f pt_new_id(point2_x, point2_y);
-            cv::circle(show_image, pt_new_id, 2, cv::Scalar(0, 0, 255), 2);
+                int point1_y = image_height * first_point_index / 5 +
+                               old_id_featurePerID.second.feature_per_frame.front().uv.y();
+                cout << "image_height = " << image_height << " image_width = " << image_width << endl;
+                cout << "first_point_index = " << first_point_index << " uv.x = " << old_id_featurePerID.second.feature_per_frame.front().uv.x() << " uv.y = " << old_id_featurePerID.second.feature_per_frame.front().uv.y() << endl;
+
+                int point1_x = image_width * first_point_index % 5 +
+                               old_id_featurePerID.second.feature_per_frame.front().uv.x();
+
+                int point2_x = image_width * WINDOW_SIZE / 2 +
+                               old_id_featurePerID.second.feature_per_frame.back().uv.x();
+
+                int point2_y = image_height +
+                               old_id_featurePerID.second.feature_per_frame.back().uv.y();
+                cout << "point1_x = " << point1_x << " point1_y = " << point1_y << " point2_x = " << point2_x << " point2_y = " << point2_y << endl;
+                // 画线连接匹配点
+                cv::line(show_image, cv::Point2i(point1_x, point1_y), cv::Point2i(point2_x, point2_y), cv::Scalar(255, 0, 0));
+
+                // 把旧的id画在上面的图上
+                char name[10];
+                sprintf(name, "%d", old_id_featurePerID.first);
+                cv::Point2f pt(point2_x, point2_y - image_height);
+                cv::circle(show_image, pt, 2, cv::Scalar(0, 255, 0), 2);
+                cv::putText(show_image, name, pt, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0));
+
+                // 把匹配的特征点在下面的图上标红
+                sprintf(name, "%d", old_id_featurePerID.second.feature_id);
+                cv::Point2f pt_new_id(point2_x, point2_y);
+                cv::circle(show_image, pt_new_id, 2, cv::Scalar(0, 0, 255), 2);
+            }
+
+            cv::imshow("SlidingWindowImages", show_image);
+            cv::waitKey(2);
         }
-
-
-        cv::imshow("SlidingWindowImages", show_image);
-        cv::waitKey(2);
     }
-#endif
 
     if(ESTIMATE_EXTRINSIC == 2)
     {

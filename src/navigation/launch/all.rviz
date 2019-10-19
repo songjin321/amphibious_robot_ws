@@ -4,12 +4,7 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /Grid1
-        - /kernel_vox1
-        - /Occupancy1
         - /Occupancy1/Autocompute Value Bounds1
-        - /act_map_markers1
-        - /Path1
         - /Image1
       Splitter Ratio: 0.5
     Tree Height: 541
@@ -31,7 +26,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: Occupancy
+    SyncSource: ""
 Toolbars:
   toolButtonStyle: 2
 Visualization Manager:
@@ -60,7 +55,7 @@ Visualization Manager:
       Marker Topic: /act_map/kernel_vox_best_views
       Name: kernel_vox
       Namespaces:
-        dir: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -98,7 +93,7 @@ Visualization Manager:
       Marker Topic: /act_map/markers
       Name: act_map_markers
       Namespaces:
-        cam: true
+        {}
       Queue Size: 1
       Value: true
     - Alpha: 1
@@ -121,12 +116,12 @@ Visualization Manager:
       Radius: 0.0299999993
       Shaft Diameter: 0.100000001
       Shaft Length: 0.100000001
-      Topic: /vins_estimator/path
+      Topic: /vins_estimator_amphiRobot/path
       Unreliable: false
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /feature_tracker/feature_img
+      Image Topic: /feature_tracker_amphiRobot/feature_img
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -141,7 +136,15 @@ Visualization Manager:
       Marker Topic: /active_slam_node/best_view
       Name: Marker
       Namespaces:
-        dir: true
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /vins_estimator_amphiRobot/camera_pose_visual
+      Name: MarkerArray
+      Namespaces:
+        {}
       Queue Size: 100
       Value: true
   Enabled: true
