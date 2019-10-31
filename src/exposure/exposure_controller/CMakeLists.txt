@@ -18,5 +18,8 @@ target_link_libraries(camera_fastconer ${OpenCV_LIBRARIES})
 cs_add_executable(camera_grad src/camera_grad.cpp)
 target_link_libraries(camera_grad ${OpenCV_LIBRARIES})
 
+cs_add_executable(camera_crf src/camera_crf.cpp)
+target_link_libraries(camera_crf ${OpenCV_LIBRARIES})
+
 cs_install()
 cs_export()
