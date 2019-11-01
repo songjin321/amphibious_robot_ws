@@ -4,6 +4,7 @@ double initBlur;
 double thresh;
 int nOctaveLayers;
 double scale_thresh;
+int detector_type;
 
 std::string IMAGE_TOPIC;
 std::string IMU_TOPIC;
@@ -54,6 +55,7 @@ void readParameters(ros::NodeHandle &n)
     thresh = fsSettings["thresh"];   
     nOctaveLayers = fsSettings["nOctaveLayers"];
     scale_thresh = fsSettings["scale_thresh"];
+    detector_type = fsSettings["detector_type"];
 
     fsSettings["image_topic"] >> IMAGE_TOPIC;
     fsSettings["imu_topic"] >> IMU_TOPIC;

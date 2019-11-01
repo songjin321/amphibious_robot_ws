@@ -92,3 +92,10 @@ fMinThFAST: 7
 initBlur: 1.6
 thresh: 1.0
 nOctaveLayers: 3
+scale_thresh: 1.0
+
+#使用哪种特征检测,
+# 0->cv::goodFeaturesToTrack
+# 1->cv::SIFT
+# 2->gpu::SIFT
+detector_type: 1

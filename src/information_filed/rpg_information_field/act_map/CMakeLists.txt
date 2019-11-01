@@ -8,7 +8,7 @@ project(act_map)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 find_package(OpenCV REQUIRED)
-
+find_package(Ceres REQUIRED)
 add_definitions(-std=c++11 -Wall -Wextra)
 
 set(HEADERS
@@ -108,6 +108,9 @@ target_link_libraries(exp_comp_optim_orient ${PROJECT_NAME})
 
 cs_add_executable(exp_pipeline exp/exp_pipeline.cpp)
 target_link_libraries(exp_pipeline ${PROJECT_NAME} ${OpenCV_LIBRARIES})
+
+cs_add_executable(exp_optim_orient_nrsl exp/exp_optim_orient_nrsl.cpp)
+target_link_libraries(exp_optim_orient_nrsl ${PROJECT_NAME} ${OpenCV_LIBRARIES} ${CERES_LIBRARIES})
 
 # test
 catkin_add_gtest(test_act_map tests/test_act_map.cpp)

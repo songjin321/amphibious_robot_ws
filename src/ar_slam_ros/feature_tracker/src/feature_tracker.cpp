@@ -175,156 +175,161 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                 cout << "mask type wrong " << endl;
             if (mask.size() != forw_img.size())
                 cout << "wrong size " << endl;
-            /*
-            cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.01, MIN_DIST, mask);
-            for (int i=0; i < n_pts.size(); i++)
-            {
-                cv::Mat descriptor(1, 128, CV_32F);
-                n_pts_descriptors.push_back(descriptor);
-            }
-            */
-            
-            std::vector<std::pair<cv::KeyPoint, cv::Mat> > coarse_keypoints_descriptors;
-            std::vector<std::pair<cv::KeyPoint, cv::Mat>> fine_keypoints_descriptors;
-              
-            cv::Mat limg;
-            forw_img.convertTo(limg, CV_32FC1);
-            unsigned int w = limg.cols;
-            unsigned int h = limg.rows;
 
-            CudaImage img;
-            img.Allocate(w, h, iAlignUp(w, 128), false, NULL, (float *)limg.data);
-            img.Download();
-            ExtractSift(siftData, img, 5, initBlur, thresh, scale_thresh, false);
-            cout << "sift points size = " << siftData.numPts << endl;
-            SiftPoint *sift_points = siftData.h_data;
-            for (size_t i = 0; i < siftData.numPts; i++)
+            if (detector_type == 0)
             {
-                cv::KeyPoint keypoint;
-                keypoint.pt.x = sift_points[i].xpos;
-                keypoint.pt.y = sift_points[i].ypos;
-                keypoint.response = sift_points[i].sharpness;
-                keypoint.angle = sift_points[i].orientation;
-                keypoint.octave = sift_points[i].edgeness; // 把边缘响应值赋值给octave
-                cv::Mat descriptor(1, 128, CV_32F);
-                for (size_t j = 0; j < 128; j++)
+                cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.01, MIN_DIST, mask);
+                for (int i=0; i < n_pts.size(); i++)
                 {
-                    descriptor.at<float>(0, j) = sift_points[i].data[j];
+                    cv::Mat descriptor(1, 128, CV_32F);
+                    n_pts_descriptors.push_back(descriptor);
                 }
-                coarse_keypoints_descriptors.push_back({keypoint, descriptor});
-            }
-            
-            // opencv sift detection
-            /*
-            vector<KeyPoint> sift_keypoints_opencv;
-            f2d->detect(forw_img, sift_keypoints_opencv);
-            for (auto keypoint : sift_keypoints_opencv)
+            } else 
             {
-                cv::Mat descriptor(1, 128, CV_32F);
-
-                coarse_keypoints_descriptors.push_back({keypoint, descriptor});
-            }
-            */
-            // 这部分算法来自cv::goodFeatureToTrack
-            // 对每一个点如果其MIN_DIST距离内有比其响应强的，则不考虑这个点
-            // 如果这个点在mask中，也不考虑这个点
-            // 对最后的点，我们考虑scale大的，即宏观特征，而不是细节特征,保证点数不超过MAX_CNT个
-            // 按照响应从大到小排序
-            std::sort(coarse_keypoints_descriptors.begin(), coarse_keypoints_descriptors.end(), 
-            [](const std::pair<cv::KeyPoint, cv::Mat>& temp_1, const std::pair<cv::KeyPoint, cv::Mat>& temp_2){
-                return temp_1.first.response > temp_2.first.response;
-            });
-            auto minDistance = MIN_DIST;
-            size_t maxCorners = n_max_cnt;
-            size_t ncorners = 0;
-            if (minDistance >= 1)
-            {
-                const int cell_size = cvRound(minDistance);
-                const int grid_width = (w + cell_size - 1) / cell_size;
-                const int grid_height = (h + cell_size - 1) / cell_size;
-
-                std::vector<std::vector<cv::Point2f>> grid(grid_width * grid_height);
-
-                minDistance *= minDistance;
-
-                for (auto keypoint_descriptor : coarse_keypoints_descriptors)
+                std::vector<std::pair<cv::KeyPoint, cv::Mat> > coarse_keypoints_descriptors;
+                std::vector<std::pair<cv::KeyPoint, cv::Mat>> fine_keypoints_descriptors;
+                unsigned int w = forw_img.cols;
+                unsigned int h = forw_img.rows;
+                if (detector_type == 1)
                 {
-                    int y = (int)(keypoint_descriptor.first.pt.y);
-                    int x = (int)(keypoint_descriptor.first.pt.x);
-
-                    bool good = true;
-
-                    int x_cell = x / cell_size;
-                    int y_cell = y / cell_size;
-
-                    int x1 = x_cell - 1;
-                    int y1 = y_cell - 1;
-                    int x2 = x_cell + 1;
-                    int y2 = y_cell + 1;
-
-                    // boundary check
-                    x1 = std::max(0, x1);
-                    y1 = std::max(0, y1);
-                    x2 = std::min(grid_width - 1, x2);
-                    y2 = std::min(grid_height - 1, y2);
-
-                    for (int yy = y1; yy <= y2; yy++)
+                    // opencv sift detection
+                    vector<KeyPoint> sift_keypoints_opencv;
+                    f2d->detect(forw_img, sift_keypoints_opencv);
+                    for (auto keypoint : sift_keypoints_opencv)
                     {
-                        for (int xx = x1; xx <= x2; xx++)
+                        cv::Mat descriptor(1, 128, CV_32F);
+
+                        coarse_keypoints_descriptors.push_back({keypoint, descriptor});
+                    }
+                }else if (detector_type == 2)
+                {
+                    cv::Mat limg;
+                    forw_img.convertTo(limg, CV_32FC1);
+                      
+                    CudaImage img;
+                    img.Allocate(w, h, iAlignUp(w, 128), false, NULL, (float *)limg.data);
+                    img.Download();
+                    ExtractSift(siftData, img, 5, initBlur, thresh, scale_thresh, false);
+                    cout << "sift points size = " << siftData.numPts << endl;
+                    SiftPoint *sift_points = siftData.h_data;
+                    for (size_t i = 0; i < siftData.numPts; i++)
+                    {
+                        cv::KeyPoint keypoint;
+                        keypoint.pt.x = sift_points[i].xpos;
+                        keypoint.pt.y = sift_points[i].ypos;
+                        keypoint.response = sift_points[i].sharpness;
+                        keypoint.angle = sift_points[i].orientation;
+                        keypoint.octave = sift_points[i].edgeness; // 把边缘响应值赋值给octave
+                        cv::Mat descriptor(1, 128, CV_32F);
+                        for (size_t j = 0; j < 128; j++)
                         {
-                            std::vector<cv::Point2f> &m = grid[yy * grid_width + xx];
+                            descriptor.at<float>(0, j) = sift_points[i].data[j];
+                        }
+                        coarse_keypoints_descriptors.push_back({keypoint, descriptor});
+                    }
+                }
 
-                            if (m.size())
+                // 这部分算法来自cv::goodFeatureToTrack
+                // 对每一个点如果其MIN_DIST距离内有比其响应强的，则不考虑这个点
+                // 如果这个点在mask中，也不考虑这个点
+                // 对最后的点，我们考虑scale大的，即宏观特征，而不是细节特征,保证点数不超过MAX_CNT个
+                // 按照响应从大到小排序
+                std::sort(coarse_keypoints_descriptors.begin(), coarse_keypoints_descriptors.end(), 
+                [](const std::pair<cv::KeyPoint, cv::Mat>& temp_1, const std::pair<cv::KeyPoint, cv::Mat>& temp_2){
+                    return temp_1.first.response > temp_2.first.response;
+                });
+                auto minDistance = MIN_DIST;
+                size_t maxCorners = n_max_cnt;
+                size_t ncorners = 0;
+                if (minDistance >= 1)
+                {
+                    const int cell_size = cvRound(minDistance);
+                    const int grid_width = (w + cell_size - 1) / cell_size;
+                    const int grid_height = (h + cell_size - 1) / cell_size;
+
+                    std::vector<std::vector<cv::Point2f>> grid(grid_width * grid_height);
+
+                    minDistance *= minDistance;
+
+                    for (auto keypoint_descriptor : coarse_keypoints_descriptors)
+                    {
+                        int y = (int)(keypoint_descriptor.first.pt.y);
+                        int x = (int)(keypoint_descriptor.first.pt.x);
+
+                        bool good = true;
+
+                        int x_cell = x / cell_size;
+                        int y_cell = y / cell_size;
+
+                        int x1 = x_cell - 1;
+                        int y1 = y_cell - 1;
+                        int x2 = x_cell + 1;
+                        int y2 = y_cell + 1;
+
+                        // boundary check
+                        x1 = std::max(0, x1);
+                        y1 = std::max(0, y1);
+                        x2 = std::min(grid_width - 1, x2);
+                        y2 = std::min(grid_height - 1, y2);
+
+                        for (int yy = y1; yy <= y2; yy++)
+                        {
+                            for (int xx = x1; xx <= x2; xx++)
                             {
-                                for (int j = 0; j < m.size(); j++)
-                                {
-                                    float dx = x - m[j].x;
-                                    float dy = y - m[j].y;
+                                std::vector<cv::Point2f> &m = grid[yy * grid_width + xx];
 
-                                    if (dx * dx + dy * dy < minDistance)
+                                if (m.size())
+                                {
+                                    for (int j = 0; j < m.size(); j++)
                                     {
-                                        good = false;
-                                        goto break_out;
+                                        float dx = x - m[j].x;
+                                        float dy = y - m[j].y;
+
+                                        if (dx * dx + dy * dy < minDistance)
+                                        {
+                                            good = false;
+                                            goto break_out;
+                                        }
                                     }
                                 }
                             }
                         }
+
+                    break_out:
+
+                        if (good)
+                        {
+                            if (mask.at<uchar>(cv::Point2f((float)x, (float)y)) == 0)
+                                continue;
+                            grid[y_cell * grid_width + x_cell].push_back(cv::Point2f((float)x, (float)y));
+
+                            fine_keypoints_descriptors.push_back(keypoint_descriptor);
+                            ++ncorners;
+
+                            if (maxCorners > 0 && (int)ncorners == maxCorners)
+                                break;
+                        }
                     }
-
-                break_out:
-
-                    if (good)
+                }
+                else
+                {
+                    for (auto keypoint_descriptor : coarse_keypoints_descriptors)
                     {
-                        if (mask.at<uchar>(cv::Point2f((float)x, (float)y)) == 0)
-                            continue;
-                        grid[y_cell * grid_width + x_cell].push_back(cv::Point2f((float)x, (float)y));
-
                         fine_keypoints_descriptors.push_back(keypoint_descriptor);
                         ++ncorners;
-
                         if (maxCorners > 0 && (int)ncorners == maxCorners)
                             break;
                     }
                 }
-            }
-            else
-            {
-                for (auto keypoint_descriptor : coarse_keypoints_descriptors)
+
+                n_pts.clear();
+                for (auto keypoint_descriptor : fine_keypoints_descriptors)
                 {
-                    fine_keypoints_descriptors.push_back(keypoint_descriptor);
-                    ++ncorners;
-                    if (maxCorners > 0 && (int)ncorners == maxCorners)
-                        break;
+                    n_pts.push_back(cv::Point2f(keypoint_descriptor.first.pt.x, keypoint_descriptor.first.pt.y));
+                    n_pts_descriptors.push_back(keypoint_descriptor.second.clone());
                 }
             }
-
-            n_pts.clear();
-            for (auto keypoint_descriptor : fine_keypoints_descriptors)
-            {
-                n_pts.push_back(cv::Point2f(keypoint_descriptor.first.pt.x, keypoint_descriptor.first.pt.y));
-                n_pts_descriptors.push_back(keypoint_descriptor.second.clone());
-            }
-            
+                    
             // draw it 
             /*
             cv::Mat drawImg = forw_img.clone();
