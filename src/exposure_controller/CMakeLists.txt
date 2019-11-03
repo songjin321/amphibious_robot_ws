@@ -12,8 +12,8 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 cs_add_executable(exposure_gama_node src/exposure_gama_node.cpp)
 target_link_libraries(exposure_gama_node ${OpenCV_LIBRARIES})
 
-#cs_add_executable(exposure_optimization_node src/exposure_optimization_node.cpp)
-#target_link_libraries(exposure_optimization_node ${OpenCV_LIBRARIES})
+cs_add_executable(exposure_optimization_node src/exposure_optimization_node.cpp)
+target_link_libraries(exposure_optimization_node ${OpenCV_LIBRARIES})
 
 cs_install()
 cs_export()

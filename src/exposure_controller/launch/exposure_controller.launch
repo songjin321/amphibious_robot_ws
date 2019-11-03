@@ -1,4 +1,5 @@
 <launch>
-    <node name="exposure_node" pkg="exposure_controller" type="exposure_node" output="screen">
+    <node name="exposure_node" pkg="exposure_controller" type="exposure_optimization_node" output="screen">
+    <remap from="/camera/color/image_raw" to="/d435i/color/image_raw" />
     </node>
 </launch>
