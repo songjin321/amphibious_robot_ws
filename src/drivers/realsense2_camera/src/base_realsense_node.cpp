@@ -1501,7 +1501,7 @@ void BaseRealSenseNode::pose_callback(rs2::frame frame)
 }
 
 void BaseRealSenseNode::frame_callback(rs2::frame frame)
-{
+{   
     _synced_imu_publisher->Pause();
 
     try{
@@ -2228,7 +2228,13 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
         img->height = height;
         img->is_bigendian = false;
         img->step = width * bpp;
-        img->header.frame_id = optical_frame_id.at(stream);
+        //img->header.frame_id = optical_frame_id.at(stream);
+        // using image frame_id to publish camera exposure interval and gain
+        rs2_option option = RS2_OPTION_EXPOSURE;
+        float exposure_interval =  _sensors[COLOR].get_option(option);
+        option = RS2_OPTION_GAIN;
+        float exposure_gain =  _sensors[COLOR].get_option(option);
+        img->header.frame_id = std::to_string(exposure_interval) + " " + std::to_string(exposure_gain);
         img->header.stamp = t;
         img->header.seq = seq[stream];
 
