@@ -1,61 +1,42 @@
 # 两栖机器人ROS代码仓库
 ## 简介
 两栖机器人野外环境下视觉定位ROS主仓库。[项目主页](https://git.nrs-lab.com/amphirobot/projectmanagement)
-## 任务分配
-每个人负责的模块写成一个ros包，各人在各自包的分支下进行开发。
-1. ar_slam_ros(宋瑾)
-  
-  [ar_slam](https://git.nrs-lab.com/amphirobot/svae-slam)的ros接口，订阅相机图像，发布相机位姿，当前帧的特征点数量和滑出窗口的估计完成的特征点三维坐标
-
-2. exposure_controller(王煜)
-
-  订阅当前的相机图像，修改相机的曝光时间
-
-3. information_filed(朱西)
-
-  订阅地图点，提供服务，查询信息最大视角
-
-4. active_localization（王志濠）
-
-  由相机位姿，机器人运动方向计算最优视角
-
-5. view_controller(王志濠)
-
-发布一个服务：call一下可以调整视角
-
-6. navigation
-  
-  最上层的launch文件
-
-7. move_base
-  
-  TODO::两栖机器人的轨迹规划，轨迹跟踪和底层的控制
 
 ## 编译安装
-### 1.安装依赖
+
+### 1.安装Ros Kinetic+Ubuntu16.04
+
+### 2.新建工作空间，下载源代码到src文件夹
+
+git clone https://git.nrs-lab.com/amphirobot/amphibious_robot_ws-.git
+
+### 3.安装依赖
+正常x86的ubuntu
 - glog      
 sudo apt install libgoogle-glog-dev
 - eigen3    
 sudo apt install libeigen3-dev
 - ceres     
 https://github.com/ceres-solver/ceres-solver
-- opencv
-- ros包依赖  
-rosdep install --from-paths src --ignore-src -r -y（**每一个包都要在自己的package.xml中写好相关的依赖**）
-### 2.下载代码
-```bash
-<<<<<<< HEAD
 
-=======
->>>>>>> vins-mono
-git clone https://git.nrs-lab.com/amphirobot/amphibious_robot_ws-.git
-git submoudle init
-git submoudle update 
-```
-### 3.编译
+如果在tx2下需要
+- ceres 1.14 with eigen 3.3.7. [ceres-solver/ceres-solver#288](https://github.com/ceres-solver/ceres-solver/issues/288)
+
+### 4.安装驱动
+1. tx2+realsensed435i
+
+2. 正常x86+realsensed435i
+
+3. 只是想跑包,可以将drivers中的包加入黑名单
+- catkin config --blacklist realsense2_camera 
+
+### 5.编译
 1. sudo apt-get install ros-kinetic-catkin python-catkin-tools（安装catkin）
-
 2. catkin build
+
+如果在tx2上，为了防止内存爆炸
+
+1. build vins_estimator with -j1
 
 ## 运行测试
 

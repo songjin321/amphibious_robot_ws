@@ -103,7 +103,7 @@ class FeatureManager
     void removeOutlier();
     list<FeaturePerId> feature;
     int last_track_num;
-    vector<pair<int, FeaturePerId*>> match_show; // new_id, 和其匹配的特征点
+    vector<pair<int, FeaturePerId>> match_show; // old_id, 和其匹配的特征点
     
   private:
     double compensatedParallax2(const FeaturePerId &it_per_id, int frame_count);

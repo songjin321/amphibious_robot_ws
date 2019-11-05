@@ -16,6 +16,8 @@
   <depend>std_msgs</depend>
   <depend>eigen_catkin</depend>
   <depend>cv_bridge</depend>
+  <depend>dynamic_reconfigure</depend>
+  <depend>realsense2_camera</depend>
   <export>
 
   </export>

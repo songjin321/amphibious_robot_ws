@@ -128,7 +128,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         // 发布的feature包括每个点的信息和对应的描述子
         feature_tracker::Feature feature;
         cv_bridge::CvImage cvimage_descriptor;
-        cvimage_descriptor.encoding = "mono8";
+        cvimage_descriptor.encoding = "32FC1";
         sensor_msgs::PointCloudPtr feature_points(new sensor_msgs::PointCloud);
         sensor_msgs::ChannelFloat32 id_of_point;
         sensor_msgs::ChannelFloat32 u_of_point;
@@ -218,9 +218,9 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
                     trackerData[i].m_camera->spaceToPlane(tmp_prev_un_pts, tmp_prev_uv);
                     cv::line(tmp_img, trackerData[i].cur_pts[j], cv::Point2f(tmp_prev_uv.x(), tmp_prev_uv.y()), cv::Scalar(255 , 0, 0), 1 , 8, 0);
                     */
-                    //char name[10];
-                    //sprintf(name, "%d", trackerData[i].ids[j]);
-                    //cv::putText(tmp_img, name, trackerData[i].cur_pts[j], cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+                    char name[10];
+                    sprintf(name, "%d", trackerData[i].ids[j]);
+                    cv::putText(tmp_img, name, trackerData[i].cur_pts[j], cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0));
                 }
             }
             //cv::imshow("vis", stereo_img);
@@ -239,8 +239,11 @@ int main(int argc, char **argv)
     readParameters(n);
     ROS_DEBUG("Hello feature tracker!");
     for (int i = 0; i < NUM_OF_CAM; i++)
+    {
         trackerData[i].readIntrinsicParameter(CAM_NAMES[i]);
-
+        trackerData[i].Init();
+    }
+ 
     if (FISHEYE)
     {
         for (int i = 0; i < NUM_OF_CAM; i++)

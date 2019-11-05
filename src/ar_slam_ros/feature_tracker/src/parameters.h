@@ -2,6 +2,13 @@
 #include <ros/ros.h>
 #include <opencv2/highgui/highgui.hpp>
 
+extern double initBlur;
+extern double thresh;
+extern int nOctaveLayers;
+extern double scale_thresh;
+
+extern int detector_type;
+
 extern int ROW;
 extern int COL;
 extern int FOCAL_LENGTH;

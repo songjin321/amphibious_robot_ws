@@ -6,7 +6,7 @@ int FeaturePerId::endFrame()
 }
 
 FeatureManager::FeatureManager(Matrix3d _Rs[])
-    : Rs(_Rs), matcher_flann(new cv::flann::LshIndexParams(5, 10, 2))
+    : Rs(_Rs)
 {
     for (int i = 0; i < NUM_OF_CAM; i++)
         ric[i].setIdentity();
@@ -97,6 +97,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
         if (it == feature.end())
         {
             // 将这个点加入候选匹配集合
+            cout << "candidate feature id = " << feature_id << endl;
             candidate_feature.push_back(std::make_tuple(feature_id, descriptors.row(index_des), f_per_fra));
         }
         else
@@ -125,7 +126,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
     cout << "query_dep rows = " << query_dep.rows << " query_dep cols = " << query_dep.cols << endl;
     if (train_dep.rows !=0 && query_dep.rows != 0)
     {
-        matcher_flann.match(query_dep, train_dep, matches);
+        // matcher_flann.match(query_dep, train_dep, matches); 
         // cv::BFMatcher matcher(cv::NORM_HAMMING);
         // matcher.match(train_dep, query_dep, matches);
     }
@@ -142,7 +143,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
     **/
     for (cv::DMatch &m : matches)
     {
-        if (m.distance < 10)
+        if (m.distance < 0.05)
         {
             cout << "m.distance = " << m.distance << endl;
             cout << "good match " << " query id = " << std::get<0>(candidate_feature[m.queryIdx]);
@@ -155,7 +156,6 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
         }
     }
     cout << "good matches: " << candidate_map.size() << endl;
-    // candidate_map.clear();
     // 根据匹配结果处理特征点
     match_show.clear();
     for (int i = 0; i < (int)candidate_feature.size(); i++)
@@ -174,15 +174,24 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
         else
         // 匹配上的，对应id的frame上加一个观测帧
         {
-            for(auto iter_feature : feature)
+            for(auto& iter_feature : feature)
             {
                 if (iter_feature.feature_id == iter->second)
                 {
+                    // 修改image中对应元素的id
+                    auto iter_image_id = image.find(std::get<0>(candidate_feature[i]));
+                    image.insert({iter->second, iter_image_id->second});
+                    image.erase(iter_image_id->first);
+
                     FeaturePerFrame f_per_frame = std::get<2>(candidate_feature[i]);
                     f_per_frame.offset = frame_count - iter_feature.start_frame;
                     iter_feature.feature_per_frame.push_back(f_per_frame);
                     last_track_num++;
-                    match_show.push_back({iter->first, &iter_feature});
+
+                    // for showing track
+                    auto iter_feature_for_match = iter_feature;
+                    iter_feature_for_match.feature_per_frame.push_back(f_per_frame);
+                    match_show.push_back({iter->first, iter_feature});
                     break;
                 }
             }
@@ -404,6 +413,8 @@ void FeatureManager::removeBackShiftDepth(Eigen::Matrix3d marg_R, Eigen::Vector3
         {
             Eigen::Vector3d uv_i = it->feature_per_frame[0].point;
             it->feature_per_frame.erase(it->feature_per_frame.begin());
+            for (auto feature_frame : it->feature_per_frame)
+                feature_frame.offset--;
             if (it->feature_per_frame.size() < 2)
             {
                 feature.erase(it);
@@ -443,6 +454,8 @@ void FeatureManager::removeBack()
         else
         {
             it->feature_per_frame.erase(it->feature_per_frame.begin());
+            for (auto feature_frame : it->feature_per_frame)
+                feature_frame.offset--;
             if (it->feature_per_frame.size() == 0)
                 feature.erase(it);
         }
@@ -465,6 +478,7 @@ void FeatureManager::removeFront(int frame_count)
             if (it->endFrame() < frame_count - 1)
                 continue;
             it->feature_per_frame.erase(it->feature_per_frame.begin() + j);
+            it->feature_per_frame[j].offset--;
             if (it->feature_per_frame.size() == 0)
                 feature.erase(it);
         }

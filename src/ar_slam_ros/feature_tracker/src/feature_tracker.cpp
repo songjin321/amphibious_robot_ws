@@ -37,30 +37,29 @@ void reduceVector(cv::Mat &v, vector<uchar> status)
     v = v.rowRange(0, j);
 }
 
-FeatureTracker::FeatureTracker():
-brief_feature_detector()
+FeatureTracker::FeatureTracker() : brief_feature_detector()
 {
+    InitSiftData(siftData, 32768, true, true);
+    InitCuda(0);
 }
 
 void FeatureTracker::setMask()
 {
-    if(FISHEYE)
+    if (FISHEYE)
         mask = fisheye_mask.clone();
     else
         mask = cv::Mat(ROW, COL, CV_8UC1, cv::Scalar(255));
-    
 
     // prefer to keep features that are tracked for long time
     // track_count, point, id, descriptor
-    vector< tuple<int, cv::Point2f, int, cv::Mat> > cnt_pts_id_des;
+    vector<tuple<int, cv::Point2f, int, cv::Mat>> cnt_pts_id_des;
 
     for (unsigned int i = 0; i < forw_pts.size(); i++)
         cnt_pts_id_des.push_back(make_tuple(track_cnt[i], forw_pts[i], ids[i], descriptors.row(i).clone()));
 
-    sort(cnt_pts_id_des.begin(), cnt_pts_id_des.end(), [](const tuple<int, cv::Point2f, int, cv::Mat> &a, const tuple<int, cv::Point2f, int, cv::Mat> &b)
-         {
-            return std::get<0>(a) > std::get<0>(b);
-         });
+    sort(cnt_pts_id_des.begin(), cnt_pts_id_des.end(), [](const tuple<int, cv::Point2f, int, cv::Mat> &a, const tuple<int, cv::Point2f, int, cv::Mat> &b) {
+        return std::get<0>(a) > std::get<0>(b);
+    });
 
     forw_pts.clear();
     ids.clear();
@@ -85,10 +84,20 @@ void FeatureTracker::addPoints(cv::Mat n_pts_descriptors)
     {
         forw_pts.push_back(n_pts[i]);
         ids.push_back(-1);
-        track_cnt.push_back(1); 
+        track_cnt.push_back(1);
         descriptors.push_back(n_pts_descriptors.row(i).clone());
     }
     ROS_DEBUG("add point success!");
+}
+
+void FeatureTracker::Init()
+{
+    // 将第一次初始化gpu放在这,因为第一次检测sift需要接近1s左右
+    CudaImage img;
+    cv::Mat temp(512, 512, CV_32FC1, cv::Scalar(0.5));
+    img.Allocate(512, 512, iAlignUp(512, 128), false, NULL, (float *)temp.data);
+    img.Download();
+    ExtractSift(siftData, img, 5, initBlur, thresh, 1.0f, false);
 }
 
 void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
@@ -154,48 +163,188 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
         ROS_DEBUG("set mask costs %fms", t_m.toc());
 
         ROS_DEBUG("detect feature begins");
-        TicToc t_t;
+        TicToc t_cal_feature;
         int n_max_cnt = MAX_CNT - static_cast<int>(forw_pts.size());
+        // n_max_cnt = 150; // for debug
         cv::Mat n_pts_descriptors;
         if (n_max_cnt > 0)
         {
-            if(mask.empty())
+            if (mask.empty())
                 cout << "mask is empty " << endl;
             if (mask.type() != CV_8UC1)
                 cout << "mask type wrong " << endl;
             if (mask.size() != forw_img.size())
                 cout << "wrong size " << endl;
-            cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.01, MIN_DIST, mask);
 
-            // 对n_pts计算描述子
-            std::vector<cv::KeyPoint>   keypoints;     // keypoints in current frame
-            for (size_t i = 0; i < n_pts.size(); i++)
+            if (detector_type == 0)
             {
-                cv::KeyPoint tmp;
-                tmp.pt.x = n_pts[i].x;
-                tmp.pt.y = n_pts[i].y;
-                keypoints.push_back(tmp);
-            }
-            std::vector<DVision::BRIEF::bitset> detect_brief;
-            brief_feature_detector.compute(forw_img, keypoints, detect_brief);
-            TicToc t_assign;
-            for (auto bits : detect_brief)
-            {
-                cv::Mat one_row(1, bits.size(), CV_8U);
-                for (size_t j = 0; j < bits.size(); j++)
+                cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.01, MIN_DIST, mask);
+                for (int i=0; i < n_pts.size(); i++)
                 {
-                    one_row.at<uchar>(0, j) = bits[j];
+                    cv::Mat descriptor(1, 128, CV_32F);
+                    n_pts_descriptors.push_back(descriptor);
                 }
-                n_pts_descriptors.push_back(one_row.clone()); 
-            }      
-            ROS_DEBUG("assign Feature costs: %fms", t_assign.toc());
+            } else 
+            {
+                std::vector<std::pair<cv::KeyPoint, cv::Mat> > coarse_keypoints_descriptors;
+                std::vector<std::pair<cv::KeyPoint, cv::Mat>> fine_keypoints_descriptors;
+                unsigned int w = forw_img.cols;
+                unsigned int h = forw_img.rows;
+                if (detector_type == 1)
+                {
+                    // opencv sift detection
+                    vector<KeyPoint> sift_keypoints_opencv;
+                    f2d->detect(forw_img, sift_keypoints_opencv);
+                    for (auto keypoint : sift_keypoints_opencv)
+                    {
+                        cv::Mat descriptor(1, 128, CV_32F);
+
+                        coarse_keypoints_descriptors.push_back({keypoint, descriptor});
+                    }
+                }else if (detector_type == 2)
+                {
+                    cv::Mat limg;
+                    forw_img.convertTo(limg, CV_32FC1);
+                      
+                    CudaImage img;
+                    img.Allocate(w, h, iAlignUp(w, 128), false, NULL, (float *)limg.data);
+                    img.Download();
+                    ExtractSift(siftData, img, 5, initBlur, thresh, scale_thresh, false);
+                    cout << "sift points size = " << siftData.numPts << endl;
+                    SiftPoint *sift_points = siftData.h_data;
+                    for (size_t i = 0; i < siftData.numPts; i++)
+                    {
+                        cv::KeyPoint keypoint;
+                        keypoint.pt.x = sift_points[i].xpos;
+                        keypoint.pt.y = sift_points[i].ypos;
+                        keypoint.response = sift_points[i].sharpness;
+                        keypoint.angle = sift_points[i].orientation;
+                        keypoint.octave = sift_points[i].edgeness; // 把边缘响应值赋值给octave
+                        cv::Mat descriptor(1, 128, CV_32F);
+                        for (size_t j = 0; j < 128; j++)
+                        {
+                            descriptor.at<float>(0, j) = sift_points[i].data[j];
+                        }
+                        coarse_keypoints_descriptors.push_back({keypoint, descriptor});
+                    }
+                }
+
+                // 这部分算法来自cv::goodFeatureToTrack
+                // 对每一个点如果其MIN_DIST距离内有比其响应强的，则不考虑这个点
+                // 如果这个点在mask中，也不考虑这个点
+                // 对最后的点，我们考虑scale大的，即宏观特征，而不是细节特征,保证点数不超过MAX_CNT个
+                // 按照响应从大到小排序
+                std::sort(coarse_keypoints_descriptors.begin(), coarse_keypoints_descriptors.end(), 
+                [](const std::pair<cv::KeyPoint, cv::Mat>& temp_1, const std::pair<cv::KeyPoint, cv::Mat>& temp_2){
+                    return temp_1.first.response > temp_2.first.response;
+                });
+                auto minDistance = MIN_DIST;
+                size_t maxCorners = n_max_cnt;
+                size_t ncorners = 0;
+                if (minDistance >= 1)
+                {
+                    const int cell_size = cvRound(minDistance);
+                    const int grid_width = (w + cell_size - 1) / cell_size;
+                    const int grid_height = (h + cell_size - 1) / cell_size;
+
+                    std::vector<std::vector<cv::Point2f>> grid(grid_width * grid_height);
+
+                    minDistance *= minDistance;
+
+                    for (auto keypoint_descriptor : coarse_keypoints_descriptors)
+                    {
+                        int y = (int)(keypoint_descriptor.first.pt.y);
+                        int x = (int)(keypoint_descriptor.first.pt.x);
+
+                        bool good = true;
+
+                        int x_cell = x / cell_size;
+                        int y_cell = y / cell_size;
+
+                        int x1 = x_cell - 1;
+                        int y1 = y_cell - 1;
+                        int x2 = x_cell + 1;
+                        int y2 = y_cell + 1;
+
+                        // boundary check
+                        x1 = std::max(0, x1);
+                        y1 = std::max(0, y1);
+                        x2 = std::min(grid_width - 1, x2);
+                        y2 = std::min(grid_height - 1, y2);
+
+                        for (int yy = y1; yy <= y2; yy++)
+                        {
+                            for (int xx = x1; xx <= x2; xx++)
+                            {
+                                std::vector<cv::Point2f> &m = grid[yy * grid_width + xx];
+
+                                if (m.size())
+                                {
+                                    for (int j = 0; j < m.size(); j++)
+                                    {
+                                        float dx = x - m[j].x;
+                                        float dy = y - m[j].y;
+
+                                        if (dx * dx + dy * dy < minDistance)
+                                        {
+                                            good = false;
+                                            goto break_out;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                    break_out:
+
+                        if (good)
+                        {
+                            if (mask.at<uchar>(cv::Point2f((float)x, (float)y)) == 0)
+                                continue;
+                            grid[y_cell * grid_width + x_cell].push_back(cv::Point2f((float)x, (float)y));
+
+                            fine_keypoints_descriptors.push_back(keypoint_descriptor);
+                            ++ncorners;
+
+                            if (maxCorners > 0 && (int)ncorners == maxCorners)
+                                break;
+                        }
+                    }
+                }
+                else
+                {
+                    for (auto keypoint_descriptor : coarse_keypoints_descriptors)
+                    {
+                        fine_keypoints_descriptors.push_back(keypoint_descriptor);
+                        ++ncorners;
+                        if (maxCorners > 0 && (int)ncorners == maxCorners)
+                            break;
+                    }
+                }
+
+                n_pts.clear();
+                for (auto keypoint_descriptor : fine_keypoints_descriptors)
+                {
+                    n_pts.push_back(cv::Point2f(keypoint_descriptor.first.pt.x, keypoint_descriptor.first.pt.y));
+                    n_pts_descriptors.push_back(keypoint_descriptor.second.clone());
+                }
+            }
+                    
+            // draw it 
+            /*
+            cv::Mat drawImg = forw_img.clone();
+            for (auto pt : n_pts)
+                cv::circle(drawImg, pt, 2, cv::Scalar(0, 255, 0), 2);
+            cv::imshow("Detected Sift Feature", drawImg);
+            cv::waitKey(2);
+            */
         }
         else
         {
             n_pts.clear();
         }
 
-        ROS_DEBUG("detect feature costs: %fms", t_t.toc());
+        ROS_DEBUG("detect feature costs: %fms", t_cal_feature.toc());
 
         ROS_DEBUG("add feature begins");
         TicToc t_a;
