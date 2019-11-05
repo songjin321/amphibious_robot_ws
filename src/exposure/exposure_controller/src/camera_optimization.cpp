@@ -202,7 +202,7 @@ public:
         }
         ROS_INFO("sum_gradient = %f", sum_gradient);
         std::cerr << "before exposure = " << exposure_time << std::endl;
-        if (fabs(sum_gradient) < 3) // prevent camera gelam
+        if (fabs(sum_gradient) < 2.1) // prevent camera gelam
         {
             double exposure_time_opti = exposure_time + steps[exposure_time]*sum_gradient;
             exposure_time = std::round(exposure_time_opti);
@@ -229,7 +229,7 @@ private:
 };
 
 ros::Publisher exposure_pub;
-ExposureController exposure_controller(640, 480, 5, 0.8, 0.8);
+ExposureController exposure_controller(640, 480, 5, 0.8, 1);
 void imageCallback(const sensor_msgs::ImageConstPtr &msg)
 {
     try
