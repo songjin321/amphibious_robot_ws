@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Song Jin
-# 仿真实验验证基于优化的最大信息视角计算的正确性
+# 画仿真实验的图，8张图放两排，每个位置画一张
 import os
 import subprocess
 import argparse
 from datetime import datetime
 from shutil import copyfile
 
-import rospkg
 import numpy as np
 from colorama import init, Fore
 import matplotlib.pyplot as plt
@@ -49,6 +48,66 @@ def plotSingle(ax, vos_pos, points, plt_rng, res, nm):
     ax.view_init(azim=0, elev=90)
 
 
+def plotAllinSingel(ax, vos_pos, index, map_points, view_points, plt_rng, res, nm):
+    #ax.scatter(map_points[0:-1:3, 0], map_points[0:-1:3, 1], map_points[0:-1:3, 2], c='blue')
+    ax.scatter(view_points[0:-1:3, 0], view_points[0:-1:3, 1], view_points[0:-1:3, 2], c='red')
+    ax.set_xlim(-plt_rng/2, plt_rng/2)
+    ax.set_ylim(-plt_rng/2, plt_rng/2)
+    ax.set_zlim(-plt_rng/2, plt_rng/2)
+    # colors = [[0, v, 0] for v in res['nvalues']]
+    # arrow_colors = colors + [v for v in colors for _ in (0, 1)]
+    # arrow_colors = colors + [[1, 0, 1] for v in colors for _ in (0, 1)]
+    ax.quiver(vox_pos[index, 0], vox_pos[index, 1], vox_pos[index, 2],
+              res['trace']['views'][index, 0], res['trace']['views'][index, 1], res['trace']['views'][index, 2],
+              length=1, color='red', pivot='tail',
+              arrow_length_ratio=0.7)
+    ax.quiver(vox_pos[index, 0], vox_pos[index, 1], vox_pos[index, 2],
+              res['det']['views'][index, 0], res['det']['views'][index, 1], res['det']['views'][index, 2],
+              length=1, color='green',pivot='tail',
+              arrow_length_ratio=0.7)
+    ax.quiver(vox_pos[index, 0], vox_pos[index, 1], vox_pos[index, 2],
+              res['mineig']['views'][index, 0], res['mineig']['views'][index, 1], res['mineig']['views'][index, 2],
+              length=1, color='blue',pivot='tail',
+              arrow_length_ratio=0.7)    
+    # plot circle
+    theta = np.linspace(-np.pi/2, np.pi/2, 201)
+    x = 1.35*np.cos(theta)
+    y = 1.35*np.sin(theta)          
+    ax.plot(x, y, color='black',label="trajectory")       
+
+    ax.scatter(vox_pos[index, 0], vox_pos[index, 1], vox_pos[index, 2], s=80, marker='^')                 
+    ax.set_title(nm)
+    ax.view_init(azim=0, elev=90)
+
+def plotAll(ax, vos_pos, map_points, plt_rng, res, nm):
+    ax.scatter(map_points[0:-1:3, 0], map_points[0:-1:3, 1], map_points[0:-1:3, 2], c='blue')
+    ax.set_xlim(-plt_rng/2, plt_rng/2)
+    ax.set_ylim(-plt_rng/2, plt_rng/2)
+    ax.set_zlim(-plt_rng/2, plt_rng/2)
+    # colors = [[0, v, 0] for v in res['nvalues']]
+    # arrow_colors = colors + [v for v in colors for _ in (0, 1)]
+    # arrow_colors = colors + [[1, 0, 1] for v in colors for _ in (0, 1)]
+    ax.quiver(vox_pos[:, 0], vox_pos[:, 1], vox_pos[:, 2],
+              res['trace']['views'][:, 0], res['trace']['views'][:, 1], res['trace']['views'][:, 2],
+              length=0.5, color='red',pivot='tail',
+              arrow_length_ratio=0.7)
+    ax.quiver(vox_pos[:, 0], vox_pos[:, 1], vox_pos[:, 2],
+              res['det']['views'][:, 0], res['det']['views'][:, 1], res['det']['views'][:, 2],
+              length=0.5, color='green',pivot='tail',
+              arrow_length_ratio=0.7)
+    ax.quiver(vox_pos[:, 0], vox_pos[:, 1], vox_pos[:, 2],
+              res['mineig']['views'][:, 0], res['mineig']['views'][:, 1], res['mineig']['views'][:, 2],
+              length=0.5, color='blue',pivot='tail',
+              arrow_length_ratio=0.7)   
+    # plot circle
+    theta = np.linspace(-np.pi/2, np.pi/2, 201)
+    x = 1.35*np.cos(theta)
+    y = 1.35*np.sin(theta)          
+    ax.plot(x, y, color='black',label="trajectory")
+    ax.scatter(vox_pos[:, 0], vox_pos[:, 1], vox_pos[:, 2], s=80, marker='^')  
+    ax.set_title(nm)
+    ax.view_init(azim=0, elev=90)
+
 def plotErrMap(ax, vox_pos, plt_rng, err, nm):
     ax.set_xlim(-plt_rng/2, plt_rng/2)
     ax.set_ylim(-plt_rng/2, plt_rng/2)
@@ -65,24 +124,15 @@ init(autoreset=True)
 _save_ext = ".pdf"
 rc('font', **{'family': 'serif', 'serif': ['Cardo'], 'size': 20})
 # rc('text', usetex=True)
-rospack = rospkg.RosPack()
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('map', type=str,
-                    help="<map>.txt under act_map/maps")
-parser.add_argument('--v', type=int, default=0,
-                    help="verbosity level passed for glog")
 parser.add_argument('--xrange', default=4.0, type=float,
                     help='Zero centered x range.')
 parser.add_argument('--yrange', default=4.0, type=float,
                     help='Zero centered y range.')
 parser.add_argument('--zrange', default=2.0, type=float,
                     help='Zero centered z range.')
-parser.add_argument('--vox_res', default=0.1, type=float,
-                    help='voxel resolution')
-parser.add_argument('--check_ratio', default=0.01, type=float,
-                    help='the ratio of voxels that will be computed')
 parser.add_argument('--animated', action='store_true',
                     help='whether to visualize it in animation')
 parser.add_argument('--dt', default=0.01, type=float,
@@ -90,49 +140,31 @@ parser.add_argument('--dt', default=0.01, type=float,
 args = parser.parse_args()
 print(args)
 
-map_dir = os.path.join(rospack.get_path('act_map'), 'maps')
-abs_map_fn = os.path.join(map_dir, args.map+'_points_w.txt')
-assert os.path.exists(abs_map_fn), "{0} does not exist".format(abs_map_fn)
 
-dstr = datetime.now().strftime('%Y%m%d%H%M%S')
-#dstr = "20191021223533"
-fn_base = os.path.basename(__file__).split('.')[0]
-top_trace_dir = os.path.join(rospack.get_path("act_map"),
+fn_base = "exp_best_orient_nrsl"
+act_map = "/home/user/Project/Final_project/amphibious_robot_ws/src/information_filed/rpg_information_field/act_map"
+top_trace_dir = os.path.join(act_map,
                              "trace/"+fn_base)
-abs_trace_dir = os.path.join(top_trace_dir, args.map + '_' + dstr)
-os.makedirs(abs_trace_dir)
-
-plot_dirs = os.path.join(abs_trace_dir, 'plots')
-os.makedirs(plot_dirs)
-
-print(Fore.RED + ">>>>> Start expriment...")
-cmd = ['rosrun', 'act_map', 'exp_optim_orient_nrsl',
-       '--abs_map='+abs_map_fn,
-       '--abs_trace_dir='+abs_trace_dir,
-       '--xrange='+str(args.xrange),
-       '--yrange='+str(args.yrange),
-       '--zrange='+str(args.zrange),
-       '--vox_res='+str(args.vox_res),
-       '--check_ratio='+str(args.check_ratio),
-       #'--v='+str(args.v),
-       ]
-copyfile(abs_map_fn, abs_trace_dir+"/map_points.txt")
-subprocess.call(cmd)
-print(Fore.GREEN + "<<<<< Experiment done.")
+abs_trace_dir = os.path.join(top_trace_dir,"four_walls_bestView")
 
 print(Fore.RED + ">>>>> Start analysis.")
 
-test_mtypes = ['trace']
-gt_nm = 'exact'
+test_mtypes = ['trace', 'det', 'mineig']
 ceres = 'ceres_optimization'
-app_nm = 'app'
 ext = '.txt'
 view_pre = 'optim_view_'
 val_pre = 'optim_value_'
 
 vox_pos = np.loadtxt(abs_trace_dir + "/vox_pos" + ext)
-points = np.loadtxt(abs_trace_dir + "/map_points" + ext)
+map_points = np.loadtxt(abs_trace_dir + "/map_points" + ext)
 
+points0 = np.loadtxt(abs_trace_dir + "/vis_point0" + ext)
+points1 = np.loadtxt(abs_trace_dir + "/vis_point1" + ext)
+points2 = np.loadtxt(abs_trace_dir + "/vis_point2" + ext)
+points3 = np.loadtxt(abs_trace_dir + "/vis_point3" + ext)
+points4 = np.loadtxt(abs_trace_dir + "/vis_point4" + ext)
+points5 = np.loadtxt(abs_trace_dir + "/vis_point5" + ext)
+points6 = np.loadtxt(abs_trace_dir + "/vis_point6" + ext)
 
 gt_res = {}
 app_res = {}
@@ -148,6 +180,13 @@ for mtype in test_mtypes:
 gt_res['trace']['nvalues'] =\
     normalize(np.log(gt_res['trace']['values']))
 
+gt_res['det']['nvalues'] =\
+    normalize(np.log(gt_res['det']['values']))
+
+gt_res['mineig']['nvalues'] =\
+    normalize(np.log(gt_res['mineig']['values']))
+
+print(gt_res['mineig']['views'])
 ### paper plots
 
 # fig_save_trace_app = plt.figure(figsize=(6, 6))
@@ -198,13 +237,70 @@ gt_res['trace']['nvalues'] =\
 axes = []
 fig = plt.figure(figsize=(27, 14))
 
-ax = fig.add_subplot(111, projection='3d')
-plotSingle(ax, vox_pos, points, args.xrange, gt_res['trace'],
-           r'$Tr(I)$ Exact')
+ax = fig.add_subplot(241, projection='3d')
+plotAllinSingel(ax, vox_pos, 0, map_points, points0, args.xrange, gt_res,
+           r'Position 1')
 ax.set_xticklabels([])
 ax.set_yticklabels([])
 ax.set_zticklabels([])
 axes.append(ax)
+
+ax = fig.add_subplot(242, projection='3d')
+plotAllinSingel(ax, vox_pos, 1, map_points, points1, args.xrange, gt_res,
+           r'Position 2')
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+ax.set_zticklabels([])
+axes.append(ax)
+
+ax = fig.add_subplot(243, projection='3d')
+plotAllinSingel(ax, vox_pos, 2, map_points, points2, args.xrange, gt_res,
+           r'Position 3')
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+ax.set_zticklabels([])
+axes.append(ax)
+
+ax = fig.add_subplot(244, projection='3d')
+plotAllinSingel(ax, vox_pos, 3, map_points, points3, args.xrange, gt_res,
+           r'Position 4')
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+ax.set_zticklabels([])
+axes.append(ax)
+
+ax = fig.add_subplot(245, projection='3d')
+plotAllinSingel(ax, vox_pos, 4, map_points, points4, args.xrange, gt_res,
+           r'Position 5')
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+ax.set_zticklabels([])
+axes.append(ax)
+
+ax = fig.add_subplot(246, projection='3d')
+plotAllinSingel(ax, vox_pos, 5, map_points, points5, args.xrange, gt_res,
+           r'Position 6')
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+ax.set_zticklabels([])
+axes.append(ax)
+
+ax = fig.add_subplot(247, projection='3d')
+plotAllinSingel(ax, vox_pos, 6, map_points, points6, args.xrange, gt_res,
+           r'Position 7')
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+ax.set_zticklabels([])
+axes.append(ax)
+
+ax = fig.add_subplot(248, projection='3d')
+plotAll(ax, vox_pos, map_points, args.xrange, gt_res,
+           r'All Position')
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+ax.set_zticklabels([])
+axes.append(ax)
+
 
 
 plt.tight_layout()

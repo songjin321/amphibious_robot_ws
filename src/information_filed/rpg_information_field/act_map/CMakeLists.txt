@@ -112,6 +112,9 @@ target_link_libraries(exp_pipeline ${PROJECT_NAME} ${OpenCV_LIBRARIES})
 cs_add_executable(exp_optim_orient_nrsl exp/exp_optim_orient_nrsl.cpp)
 target_link_libraries(exp_optim_orient_nrsl ${PROJECT_NAME} ${OpenCV_LIBRARIES} ${CERES_LIBRARIES})
 
+cs_add_executable(exp_best_orient_nrsl exp/exp_best_orient_nrsl.cpp)
+target_link_libraries(exp_best_orient_nrsl ${PROJECT_NAME} ${OpenCV_LIBRARIES} ${CERES_LIBRARIES})
+
 # test
 catkin_add_gtest(test_act_map tests/test_act_map.cpp)
 target_link_libraries(test_act_map ${PROJECT_NAME})
