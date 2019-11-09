@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# Author：Song Jin
+# 仿真实验验证使用平均方法的最优视角计算
+
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 # Song Jin
 # 仿真实验验证基于优化的最大信息视角计算的正确性
 import os
@@ -106,14 +111,12 @@ plot_dirs = os.path.join(abs_trace_dir, 'plots')
 os.makedirs(plot_dirs)
 
 print(Fore.RED + ">>>>> Start expriment...")
-cmd = ['rosrun', 'act_map', 'exp_optim_orient_nrsl',
+cmd = ['rosrun', 'act_map', 'exp_best_orient_nrsl',
        '--abs_map='+abs_map_fn,
        '--abs_trace_dir='+abs_trace_dir,
        '--xrange='+str(args.xrange),
        '--yrange='+str(args.yrange),
        '--zrange='+str(args.zrange),
-       '--vox_res='+str(args.vox_res),
-       '--check_ratio='+str(args.check_ratio),
        #'--v='+str(args.v),
        ]
 copyfile(abs_map_fn, abs_trace_dir+"/map_points.txt")
@@ -122,10 +125,8 @@ print(Fore.GREEN + "<<<<< Experiment done.")
 
 print(Fore.RED + ">>>>> Start analysis.")
 
-test_mtypes = ['trace']
-gt_nm = 'exact'
+test_mtypes = ['trace', 'det', 'mineig']
 ceres = 'ceres_optimization'
-app_nm = 'app'
 ext = '.txt'
 view_pre = 'optim_view_'
 val_pre = 'optim_value_'
@@ -148,6 +149,11 @@ for mtype in test_mtypes:
 gt_res['trace']['nvalues'] =\
     normalize(np.log(gt_res['trace']['values']))
 
+gt_res['det']['nvalues'] =\
+    normalize(np.log(gt_res['trace']['values']))
+
+gt_res['mineig']['nvalues'] =\
+    normalize(np.log(gt_res['trace']['values']))
 ### paper plots
 
 # fig_save_trace_app = plt.figure(figsize=(6, 6))
@@ -198,14 +204,29 @@ gt_res['trace']['nvalues'] =\
 axes = []
 fig = plt.figure(figsize=(27, 14))
 
-ax = fig.add_subplot(111, projection='3d')
+ax = fig.add_subplot(131, projection='3d')
 plotSingle(ax, vox_pos, points, args.xrange, gt_res['trace'],
-           r'$Tr(I)$ Exact')
+           r'Max info view')
 ax.set_xticklabels([])
 ax.set_yticklabels([])
 ax.set_zticklabels([])
 axes.append(ax)
 
+ax = fig.add_subplot(132, projection='3d')
+plotSingle(ax, vox_pos, points, args.xrange, gt_res['det'],
+           r'Best view')
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+ax.set_zticklabels([])
+axes.append(ax)
+
+ax = fig.add_subplot(133, projection='3d')
+plotSingle(ax, vox_pos, points, args.xrange, gt_res['mineig'],
+           r'Move Direction')
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+ax.set_zticklabels([])
+axes.append(ax)
 
 plt.tight_layout()
 if args.animated:
