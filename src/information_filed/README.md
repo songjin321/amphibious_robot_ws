@@ -22,3 +22,14 @@ active slam的效果：机器人主动对环境进行探索
 
 2. 发布的信息
 信息场计算的视角信息值 话题名称： /act_map/view_info  话题类型：act_map_msgs::ViewInformation
+
+## 仿真实验
+
+1. 基于优化的最大信息视角计算
+rosrun act_map exp_optim_orient_nrsl.py two_walls --v=1 
+
+2. 仿真测试最优视角
+rosrun act_map exp_best_orient_nrsl.py four_walls --v=1
+
+3. 画图
+rosrun act_map exp_plot.py 

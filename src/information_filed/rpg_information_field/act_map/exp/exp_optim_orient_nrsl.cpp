@@ -141,6 +141,7 @@ RPG_COMMON_MAIN
         time_exact.insert({v, 0});
     }
     double cnt_r = 0.0;
+    std::cout << "kNCompute = " << kNCompute <<std::endl;
     for (int i = 0; i < kNCompute; i++)
     {
         if (i > cnt_r * kNCompute)

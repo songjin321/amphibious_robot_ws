@@ -17,7 +17,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import exp_utils as eu
 
 import matplotlib
-
+import rospkg
 print(matplotlib.__version__)
 
 _save_ext = ".pdf"
@@ -140,11 +140,9 @@ parser.add_argument('--dt', default=0.01, type=float,
 args = parser.parse_args()
 print(args)
 
-
-fn_base = "exp_best_orient_nrsl"
-act_map = "/home/user/Project/Final_project/amphibious_robot_ws/src/information_filed/rpg_information_field/act_map"
-top_trace_dir = os.path.join(act_map,
-                             "trace/"+fn_base)
+rospack = rospkg.RosPack()
+act_map = os.path.join(rospack.get_path("act_map"))
+top_trace_dir = os.path.join(act_map, "trace")
 abs_trace_dir = os.path.join(top_trace_dir,"four_walls_bestView")
 
 print(Fore.RED + ">>>>> Start analysis.")
@@ -301,9 +299,8 @@ ax.set_yticklabels([])
 ax.set_zticklabels([])
 axes.append(ax)
 
-
-
 plt.tight_layout()
+plt.subplots_adjust(wspace =0, hspace =0)#调整子图间距
 if args.animated:
     azim = np.arange(0, 360, 2)
 
