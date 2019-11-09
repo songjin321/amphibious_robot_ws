@@ -22,7 +22,7 @@
 #include <queue>
 #include <opencv2/core/eigen.hpp>
 #include "feature_tracker/Feature.h"
-
+#include <mutex>
 class Estimator
 {
   public:
@@ -49,6 +49,28 @@ class Estimator
     void double2vector();
     bool failureDetection();
 
+    // show
+    void showSlidingWindow()
+    {
+        cv::namedWindow("SlidingWindowImages");
+        cv::Mat flash_image = show_image.clone();
+        while(1)
+        {
+            if (show_image_update)
+            {
+                std::lock_guard<std::mutex> lock_guard(m_show_slidingWindow);
+                flash_image = show_image.clone();
+                show_image_update = false;
+            }
+            if (!flash_image.empty())
+            {
+                cv::imshow("SlidingWindowImages", flash_image);
+            }
+            cv::waitKey(1);
+            // usleep(100);
+        }
+
+    }
 
     enum SolverFlag
     {
@@ -137,4 +159,8 @@ class Estimator
     Vector3d relo_relative_t;
     Quaterniond relo_relative_q;
     double relo_relative_yaw;
+
+    cv::Mat show_image; // show sliding window images;
+    std::mutex m_show_slidingWindow;
+    bool show_image_update = false;
 };

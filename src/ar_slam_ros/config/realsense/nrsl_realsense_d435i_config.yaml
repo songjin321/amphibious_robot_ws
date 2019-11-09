@@ -99,3 +99,6 @@ scale_thresh: 1.0
 # 1->cv::SIFT
 # 2->gpu::SIFT
 detector_type: 1
+
+## 是否画图显示滑动窗口
+SHOW_TRACK_IMAGE: 0

@@ -159,9 +159,9 @@ getMeasurements()
     }
     cv::Mat image;
     if (ptr->encoding == "rgb8")
-        cv::cvtColor(ptr->image, image, cv::COLOR_RGB2GRAY);
+        cv::cvtColor(ptr->image, image, cv::COLOR_RGB2BGR);
     else if (ptr->encoding == "bgr8")
-        cv::cvtColor(ptr->image, image, cv::COLOR_BGR2GRAY);
+        ;//cv::cvtColor(ptr->image, image, cv::COLOR_BGR2GRAY);
     else if (ptr->encoding == "mono8")
         image = ptr->image;
     else 
@@ -172,7 +172,7 @@ getMeasurements()
         m_estimator.lock();
         if (estimator.image_buf.size() > 200)
             estimator.image_buf.pop_front();
-        estimator.image_buf.push_back({img_msg->header, ptr->image});
+        estimator.image_buf.push_back({img_msg->header, image});
         m_estimator.unlock();
     }
 
@@ -439,6 +439,7 @@ int main(int argc, char **argv)
     ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
     ros::Subscriber sub_raw_image = n.subscribe(IMAGE_TOPIC, 100, img_callback); // save image for show
     std::thread measurement_process{process};
+    std::thread show_slidingWindos(&Estimator::showSlidingWindow, &estimator);
     ros::spin();
 
     return 0;
