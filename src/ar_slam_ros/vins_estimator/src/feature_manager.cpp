@@ -97,7 +97,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
         if (it == feature.end())
         {
             // 将这个点加入候选匹配集合
-            cout << "candidate feature id = " << feature_id << endl;
+            // cout << "candidate feature id = " << feature_id << endl;
             candidate_feature.push_back(std::make_tuple(feature_id, descriptors.row(index_des), f_per_fra));
         }
         else
@@ -238,9 +238,11 @@ void FeatureManager::debugShow()
         int sum = 0;
         for (auto &j : it.feature_per_frame)
         {
-            ROS_DEBUG("%d,", int(j.is_used));
-            sum += j.is_used;
-            printf("(%lf,%lf) ", j.point(0), j.point(1));
+            //ROS_DEBUG("is_used %d,", int(j.is_used));
+            ROS_DEBUG("offset %d,", int(j.offset));
+            //sum += j.is_used;
+            sum += 1;
+            printf("(%lf,%lf) \n", j.point(0), j.point(1));
         }
         ROS_ASSERT(it.used_num == sum);
     }
@@ -413,7 +415,7 @@ void FeatureManager::removeBackShiftDepth(Eigen::Matrix3d marg_R, Eigen::Vector3
         {
             Eigen::Vector3d uv_i = it->feature_per_frame[0].point;
             it->feature_per_frame.erase(it->feature_per_frame.begin());
-            for (auto feature_frame : it->feature_per_frame)
+            for (FeaturePerFrame& feature_frame : it->feature_per_frame) // fuck! auto害死人啊,auto默认是拷贝,不是引用
                 feature_frame.offset--;
             if (it->feature_per_frame.size() < 2)
             {
@@ -454,7 +456,7 @@ void FeatureManager::removeBack()
         else
         {
             it->feature_per_frame.erase(it->feature_per_frame.begin());
-            for (auto feature_frame : it->feature_per_frame)
+            for (FeaturePerFrame& feature_frame : it->feature_per_frame) // fuck! auto害死人啊,这是拷贝,不是引用
                 feature_frame.offset--;
             if (it->feature_per_frame.size() == 0)
                 feature.erase(it);

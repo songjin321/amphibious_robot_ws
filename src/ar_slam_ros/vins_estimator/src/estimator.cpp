@@ -292,7 +292,7 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
                     cv::line(show_image, first_point, second_point, cv::Scalar(0, 0, 255));
                 }
 
-                cv::resize(show_image, show_image, cv::Size(), 0.75, 0.75);
+                cv::resize(show_image, show_image, cv::Size(), 0.7, 0.7);
             }
             show_image_update = true;
         }
@@ -418,10 +418,12 @@ bool Estimator::initialStructure()
         SFMFeature tmp_feature;
         tmp_feature.state = false;
         tmp_feature.id = it_per_id.feature_id;
+        cout <<"feature id = " << it_per_id.feature_id << endl;
         for (auto &it_per_frame : it_per_id.feature_per_frame)
         {
             // imu_j++;
             imu_j = it_per_id.start_frame + it_per_frame.offset;
+            // cout << "imu_j = " << imu_j << " start_frame = " << it_per_id.start_frame << " offset = " << it_per_frame.offset << endl;
             Vector3d pts_j = it_per_frame.point;
             tmp_feature.observation.push_back(make_pair(imu_j, Eigen::Vector2d{pts_j.x(), pts_j.y()}));
         }
@@ -1041,7 +1043,8 @@ void Estimator::optimization()
 
                 for (auto &it_per_frame : it_per_id.feature_per_frame)
                 {
-                    imu_j++;
+                    // imu_j++;
+                    imu_j = it_per_id.start_frame + it_per_frame.offset;
                     if (imu_i == imu_j)
                         continue;
 
