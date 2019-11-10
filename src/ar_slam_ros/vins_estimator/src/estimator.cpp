@@ -321,7 +321,8 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
             }
         }
     }
-
+    cout << "after add features" << endl;
+    f_manager.debugShow();
     if (solver_flag == INITIAL)
     {
         if (frame_count == WINDOW_SIZE)
@@ -380,6 +381,8 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
         last_R0 = Rs[0];
         last_P0 = Ps[0];
     }
+    cout << "after marginalization" << endl;
+    f_manager.debugShow();
 }
 bool Estimator::initialStructure()
 {
@@ -423,7 +426,7 @@ bool Estimator::initialStructure()
         SFMFeature tmp_feature;
         tmp_feature.state = false;
         tmp_feature.id = it_per_id.feature_id;
-        // cout <<"feature id = " << it_per_id.feature_id << endl;
+        //  cout <<"feature id = " << it_per_id.feature_id << endl;
         for (auto &it_per_frame : it_per_id.feature_per_frame)
         {
             // imu_j++;

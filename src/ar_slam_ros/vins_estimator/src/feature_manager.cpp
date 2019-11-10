@@ -83,7 +83,6 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
     last_track_num = 0;
 
     // 候选待匹配的特征，id，描述子，每帧信息
-    // debugShow();
     std::vector<std::tuple<int, cv::Mat, FeaturePerFrame>> candidate_feature;
     // int index_des = 0; // fuck,这是一个map,不是顺序容器!FUCK!!! 5个小时浪费了!!!
     for (auto &id_pts : image)
@@ -172,7 +171,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
     {
         auto iter = candidate_map.find(std::get<0>(candidate_feature[i]));
         // 没匹配上的，新建一个特征点
-        //if (iter == candidate_map.end())
+        if (iter == candidate_map.end())
         {
             
             FeaturePerId feature_per_id = FeaturePerId(std::get<0>(candidate_feature[i]), frame_count);
@@ -183,8 +182,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
             feature.back().feature_per_frame.push_back(f_per_frame);
             
         }
-        // else
-        if (iter != candidate_map.end())
+        else
         // 匹配上的，对应id的frame上加一个观测帧
         {
             for(FeaturePerId& iter_feature : feature)
@@ -205,9 +203,19 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
                     image.erase(iter_image_id->first);
                     */
 
-                    // add to sliding windos
-                    // iter_feature.feature_per_frame.push_back(f_per_frame);
-                    // last_track_num++;
+                    // add to sliding window
+                    // 判断一下,
+                    bool wrong_match = false;
+                    for (auto& per_frame : iter_feature.feature_per_frame)
+                    {
+                        if (per_frame.offset == f_per_frame.offset )
+                            wrong_match = true;
+                    }
+                    if (!wrong_match)
+                    {
+                        iter_feature.feature_per_frame.push_back(f_per_frame);
+                        last_track_num++;
+                    }    
                     break;
                 }
             }
@@ -249,17 +257,19 @@ void FeatureManager::debugShow()
         ROS_ASSERT(it.feature_per_frame.size() != 0);
         ROS_ASSERT(it.start_frame >= 0);
         ROS_ASSERT(it.used_num >= 0);
-
-        ROS_DEBUG("%d,%d,%d ", it.feature_id, it.used_num, it.start_frame);
-        int sum = 0;
-        for (auto &j : it.feature_per_frame)
+        if (it.feature_id == 59)
         {
-            //ROS_DEBUG("is_used %d,", int(j.is_used));
-            printf("offset = %d \n", j.offset);
-            sum += 1;
-            printf("(%lf,%lf) \n", j.point(0), j.point(1));
+            ROS_DEBUG("%d,%d,%d ", it.feature_id, it.used_num, it.start_frame);
+            int sum = 0;
+            for (auto &j : it.feature_per_frame)
+            {
+                //ROS_DEBUG("is_used %d,", int(j.is_used));
+                printf("offset = %d \n", j.offset);
+                sum += 1;
+                printf("(%lf,%lf) \n", j.point(0), j.point(1));
+            }
+            // ROS_ASSERT(it.used_num == sum);
         }
-        ROS_ASSERT(it.used_num == sum);
     }
 }
 
