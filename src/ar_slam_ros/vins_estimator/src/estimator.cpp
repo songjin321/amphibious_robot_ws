@@ -256,7 +256,7 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
                     point_second.y = old_id_featurePerID.second.feature_per_frame.back().uv.y();
 
                     int first_point_index = old_id_featurePerID.second.feature_per_frame.front().offset + old_id_featurePerID.second.start_frame;
-                    cout << "offset = "<< old_id_featurePerID.second.feature_per_frame.front().offset << " first_point_index = " << first_point_index << endl;
+                    // cout << "offset = "<< old_id_featurePerID.second.feature_per_frame.front().offset << " first_point_index = " << first_point_index << endl;
 
                     int point1_x = point_first.x + image_width * width_factor[first_point_index];
                     int point1_y = point_first.y + image_height * height_factor[first_point_index];               
@@ -423,7 +423,7 @@ bool Estimator::initialStructure()
         SFMFeature tmp_feature;
         tmp_feature.state = false;
         tmp_feature.id = it_per_id.feature_id;
-        cout <<"feature id = " << it_per_id.feature_id << endl;
+        // cout <<"feature id = " << it_per_id.feature_id << endl;
         for (auto &it_per_frame : it_per_id.feature_per_frame)
         {
             // imu_j++;

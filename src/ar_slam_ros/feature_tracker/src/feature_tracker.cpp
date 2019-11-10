@@ -329,6 +329,8 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                 {
                     n_pts.push_back(cv::Point2f(keypoint_descriptor.first.pt.x, keypoint_descriptor.first.pt.y));
                     n_pts_descriptors.push_back(keypoint_descriptor.second.clone());
+                    // std::cout << "pt x = " << keypoint_descriptor.first.pt.x << " pt y = " << keypoint_descriptor.first.pt.y << std::endl;
+                    // std::cout << "descriptors = " << keypoint_descriptor.second.clone() << std::endl;
                 }
             }
                     

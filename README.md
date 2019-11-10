@@ -38,6 +38,9 @@ https://github.com/ceres-solver/ceres-solver
 
 1. build vins_estimator with -j1
 
+没有相机驱动,不编译曝光控制部分
+catkin config --blacklist realsense2_camera exposure_controller
+
 ## 运行测试
 
 ### 1. 测试ar_slam

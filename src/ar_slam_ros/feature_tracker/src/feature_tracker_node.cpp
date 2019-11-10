@@ -99,16 +99,6 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         trackerData[i].showUndistortion("undistrotion_" + std::to_string(i));
 #endif
     }
-    // test vector for debug
-    /*
-    cout << "*************************print data for Debug**********************" << endl;
-    for (unsigned int i = 0; i < trackerData[0].ids.size(); i++)
-    {
-        cout << "id = " << trackerData[0].ids[i] << endl;
-        cout << "pts = " << trackerData[0].cur_pts[i] << endl;
-        cout << "descriptors = " << trackerData[0].descriptors.row(i) << endl;
-    }
-    */
 
     for (unsigned int i = 0;; i++)
     {
@@ -122,7 +112,16 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 
     if (PUB_THIS_FRAME)
     {
-
+        // test vector for debug
+        /*
+        cout << "*************************print data for Debug**********************" << endl;
+        for (unsigned int i = 0; i < trackerData[0].ids.size(); i++)
+        {
+            cout << "id = " << trackerData[0].ids[i] << endl;
+            cout << "pts = " << trackerData[0].cur_pts[i] << endl;
+            cout << "descriptors = " << trackerData[0].descriptors.row(i) << endl;
+        }
+        */
         //
         pub_count++;
         // 发布的feature包括每个点的信息和对应的描述子
@@ -168,7 +167,6 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
                     cvimage_descriptor.image.push_back(descriptor.row(j).clone());
                 }
             }
-            std::cout << "In feature tracker, publish feature number = " << ids.size() << std::endl;
         }
         feature_points->channels.push_back(id_of_point);
         feature_points->channels.push_back(u_of_point);
