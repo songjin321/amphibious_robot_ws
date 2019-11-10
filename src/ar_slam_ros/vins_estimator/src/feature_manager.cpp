@@ -97,7 +97,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
         if (it == feature.end())
         {
             // 将这个点加入候选匹配集合
-            // cout << "candidate feature id = " << feature_id << endl;
+            cout << "candidate feature id = " << feature_id << endl;
             candidate_feature.push_back(std::make_tuple(feature_id, descriptors.row(index_des), f_per_fra));
         }
         else
@@ -113,7 +113,8 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
     unordered_map<int, int> candidate_map; // 匹配上的点对，下标索引, 候选<->地图
     cv::Mat train_dep;
     cv::Mat query_dep;
-    std::vector<cv::DMatch> matches;
+    std::vector<std::vector<cv::DMatch>> matches;
+    std::vector<cv::DMatch> good_matches;
     for (auto &f : feature)
     {
         train_dep.push_back(f.descriptor);
@@ -127,12 +128,12 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
     if (train_dep.rows !=0 && query_dep.rows != 0)
     {
         // matcher_flann.match(query_dep, train_dep, matches); 
-        // cv::BFMatcher matcher(cv::NORM_HAMMING);
-        // matcher.match(train_dep, query_dep, matches);
+        cv::BFMatcher matcher;
+        matcher.knnMatch(query_dep, train_dep, matches, 2);
     }
 
     // select the best matches
-    /**
+    /*
     float min_dis = std::min_element(
                         matches.begin(), matches.end(),
                         [](const cv::DMatch &m1, const cv::DMatch &m2) {
@@ -140,10 +141,17 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
                         })
                         ->distance;
     float match_ratio = 2.0; // ratio for selecting  good matches
-    **/
-    for (cv::DMatch &m : matches)
+    */
+    for(int i=0; i < matches.size(); i++)
     {
-        if (m.distance < 0.05)
+        if (matches[i][0].distance < 0.5*matches[i][1].distance)
+            good_matches.push_back(matches[i][0]);  
+    }
+
+
+    for (cv::DMatch &m : good_matches)
+    {
+        // if (m.distance < 0.05)
         {
             cout << "m.distance = " << m.distance << endl;
             cout << "good match " << " query id = " << std::get<0>(candidate_feature[m.queryIdx]);
@@ -156,6 +164,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
         }
     }
     cout << "good matches: " << candidate_map.size() << endl;
+    // candidate_map.clear(); //clear之后相当于关闭匹配的作用
     // 根据匹配结果处理特征点
     match_show.clear();
     for (int i = 0; i < (int)candidate_feature.size(); i++)
@@ -174,22 +183,23 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
         else
         // 匹配上的，对应id的frame上加一个观测帧
         {
-            for(auto& iter_feature : feature)
+            for(FeaturePerId& iter_feature : feature)
             {
                 if (iter_feature.feature_id == iter->second)
                 {
                     // 修改image中对应元素的id
+                    /*
                     auto iter_image_id = image.find(std::get<0>(candidate_feature[i]));
                     image.insert({iter->second, iter_image_id->second});
                     image.erase(iter_image_id->first);
-
+                    */
                     FeaturePerFrame f_per_frame = std::get<2>(candidate_feature[i]);
                     f_per_frame.offset = frame_count - iter_feature.start_frame;
-                    iter_feature.feature_per_frame.push_back(f_per_frame);
+                    // iter_feature.feature_per_frame.push_back(f_per_frame);
                     last_track_num++;
 
                     // for showing track
-                    auto iter_feature_for_match = iter_feature;
+                    FeaturePerId iter_feature_for_match = iter_feature;
                     iter_feature_for_match.feature_per_frame.push_back(f_per_frame);
                     match_show.push_back({iter->first, iter_feature});
                     break;
@@ -239,7 +249,6 @@ void FeatureManager::debugShow()
         for (auto &j : it.feature_per_frame)
         {
             //ROS_DEBUG("is_used %d,", int(j.is_used));
-            ROS_DEBUG("offset %d,", int(j.offset));
             //sum += j.is_used;
             sum += 1;
             printf("(%lf,%lf) \n", j.point(0), j.point(1));

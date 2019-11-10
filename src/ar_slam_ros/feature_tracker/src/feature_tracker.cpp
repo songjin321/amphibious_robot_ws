@@ -197,11 +197,11 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                     // opencv sift detection
                     vector<KeyPoint> sift_keypoints_opencv;
                     f2d->detect(forw_img, sift_keypoints_opencv);
-                    for (auto keypoint : sift_keypoints_opencv)
+                    cv::Mat descriptor;
+                    f2d->compute(forw_img, sift_keypoints_opencv, descriptor);
+                    for (int i=0; i < sift_keypoints_opencv.size(); i++)
                     {
-                        cv::Mat descriptor(1, 128, CV_32F);
-
-                        coarse_keypoints_descriptors.push_back({keypoint, descriptor});
+                        coarse_keypoints_descriptors.push_back({sift_keypoints_opencv[i], descriptor.row(i)});
                     }
                 }else if (detector_type == 2)
                 {

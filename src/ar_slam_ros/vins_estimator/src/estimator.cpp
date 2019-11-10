@@ -201,7 +201,6 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
             }
 
             // 把show_imgs给整合成一张图片,  3行x4列
-
             std::vector<cv::Mat> show_imgs_first_row;
             show_imgs_first_row.push_back(show_imgs[0]);
             show_imgs_first_row.push_back(show_imgs[1]);
@@ -233,35 +232,42 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
                 std::lock_guard<std::mutex> lock_guard(m_show_slidingWindow);
                 cv::vconcat(all_rows, show_image);
 
-                // 画当前帧匹配结果
                 int image_width = show_imgs.back().cols;
                 int image_height = show_imgs.back().rows;
+                std::vector<int> width_factor = {0, 1, 2, 3, 3, 2, 1, 0, 0, 1, 2};
+                std::vector<int> height_factor = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2};
+
+                // 画当前帧和地图匹配结果
                 cout << " match_show size = " << f_manager.match_show.size() << endl;
                 for (auto old_id_featurePerID : f_manager.match_show)
                 {
-                    if (old_id_featurePerID.second.feature_per_frame.size() <= 2)
-                        ROS_ERROR("this is impossible!");
+                    if (old_id_featurePerID.second.feature_per_frame.size() <= 1)
+                    {
+                        ROS_ERROR("just one feature point, can not plot corresponds line!");
+                        continue;
+                    }
+
                     // 计算一对匹配点位置
-                    int first_point_index = old_id_featurePerID.second.start_frame + old_id_featurePerID.second.feature_per_frame.front().offset;
-                    cout << " first_point_index = " << first_point_index << endl;
+                    cv::Point2f point_first, point_second;
+                    point_first.x = old_id_featurePerID.second.feature_per_frame.front().uv.x();
+                    point_first.y = old_id_featurePerID.second.feature_per_frame.front().uv.y();
 
-                    int point1_y = image_height * first_point_index / 5 +
-                                   old_id_featurePerID.second.feature_per_frame.front().uv.y();
-                    cout << "image_height = " << image_height << " image_width = " << image_width << endl;
-                    cout << "first_point_index = " << first_point_index << " uv.x = " << old_id_featurePerID.second.feature_per_frame.front().uv.x() << " uv.y = " << old_id_featurePerID.second.feature_per_frame.front().uv.y() << endl;
+                    point_second.x = old_id_featurePerID.second.feature_per_frame.back().uv.x();
+                    point_second.y = old_id_featurePerID.second.feature_per_frame.back().uv.y();
 
-                    int point1_x = image_width * first_point_index % 5 +
-                                   old_id_featurePerID.second.feature_per_frame.front().uv.x();
+                    int first_point_index = old_id_featurePerID.second.feature_per_frame.front().offset + old_id_featurePerID.second.start_frame;
+                    cout << "offset = "<< old_id_featurePerID.second.feature_per_frame.front().offset << " first_point_index = " << first_point_index << endl;
 
-                    int point2_x = image_width * WINDOW_SIZE / 2 +
-                                   old_id_featurePerID.second.feature_per_frame.back().uv.x();
+                    int point1_x = point_first.x + image_width * width_factor[first_point_index];
+                    int point1_y = point_first.y + image_height * height_factor[first_point_index];               
 
-                    int point2_y = image_height +
-                                   old_id_featurePerID.second.feature_per_frame.back().uv.y();
-                    cout << "point1_x = " << point1_x << " point1_y = " << point1_y << " point2_x = " << point2_x << " point2_y = " << point2_y << endl;
+                    int point2_x = point_second.x + image_width * width_factor.back();
+                    int point2_y = point_second.y + image_height * height_factor.back();
+                    // cout << "point1_x = " << point1_x << " point1_y = " << point1_y << " point2_x = " << point2_x << " point2_y = " << point2_y << endl;
                     // 画线连接匹配点
-                    cv::line(show_image, cv::Point2i(point1_x, point1_y), cv::Point2i(point2_x, point2_y), cv::Scalar(255, 0, 0));
+                    cv::line(show_image, cv::Point2i(point1_x, point1_y), cv::Point2i(point2_x, point2_y), cv::Scalar(255, 0, 0), 3);
 
+                    /*
                     // 把旧的id画在上面的图上
                     char name[10];
                     sprintf(name, "%d", old_id_featurePerID.first);
@@ -273,13 +279,12 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
                     sprintf(name, "%d", old_id_featurePerID.second.feature_id);
                     cv::Point2f pt_new_id(point2_x, point2_y);
                     cv::circle(show_image, pt_new_id, 2, cv::Scalar(0, 0, 255), 2);
+                    */
                 }
 
                 // 画光流跟踪结果
                 for(int i=0; i < track_second_index.size(); i++)
                 {
-                    std::vector<int> width_factor = {0, 1, 2, 3, 3, 2, 1, 0, 0, 1, 2};
-                    std::vector<int> height_factor = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2};
 
                     cv::Point2i first_point;
                     cv::Point2i second_point;
@@ -289,7 +294,7 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
                     second_point.x = track_second_point[i].x + image_width * width_factor[track_second_index[i]];
                     second_point.y = track_second_point[i].y + image_height * height_factor[track_second_index[i]];
          
-                    cv::line(show_image, first_point, second_point, cv::Scalar(0, 0, 255));
+                    // cv::line(show_image, first_point, second_point, cv::Scalar(0, 0, 255));
                 }
 
                 cv::resize(show_image, show_image, cv::Size(), 0.7, 0.7);

@@ -148,7 +148,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
             auto &descriptor = trackerData[i].descriptors;
             for (unsigned int j = 0; j < ids.size(); j++)
             {
-                if (trackerData[i].track_cnt[j] > 1) // 该特征至少在连续两帧中被跟踪到才发布
+                //if (trackerData[i].track_cnt[j] > 1) // 该特征至少在连续两帧中被跟踪到才发布,野外环境视野变换较大,使用加描述子重匹配的方法,直接发布
                 {
                     int p_id = ids[j];
                     if (hash_test.find(p_id) != hash_test.end())
