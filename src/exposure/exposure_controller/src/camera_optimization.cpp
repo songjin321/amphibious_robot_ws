@@ -1,3 +1,13 @@
+/**
+ * @file camera_optimization.cpp
+ * @author Song Jin (songjinxs@163.com)
+ * @brief 
+ * @version 0.1
+ * @date 2019-11-11
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
 #include <opencv2/highgui/highgui.hpp>

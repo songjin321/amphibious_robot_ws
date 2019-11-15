@@ -149,6 +149,9 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
             // << j << " stamp = " <<  Headers[j].stamp.toSec() << endl;
             if (header_image.first.stamp.toSec() == Headers[j].stamp.toSec())
             {
+                cv::Mat image_color;
+                // if (header_image.second.ty)
+                // cv::cvtColor(header_image.second, image_color, CV_GRAY2BGR);
                 show_imgs.push_back(header_image.second);
                 j++;
                 if (j > WINDOW_SIZE)
@@ -294,7 +297,7 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
                     second_point.x = track_second_point[i].x + image_width * width_factor[track_second_index[i]];
                     second_point.y = track_second_point[i].y + image_height * height_factor[track_second_index[i]];
          
-                    // cv::line(show_image, first_point, second_point, cv::Scalar(0, 0, 255));
+                    cv::line(show_image, first_point, second_point, cv::Scalar(0, 0, 255));
                 }
 
                 cv::resize(show_image, show_image, cv::Size(), 0.7, 0.7);

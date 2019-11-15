@@ -2,7 +2,7 @@
 
 #common parameters
 imu_topic: "/d435i/imu"
-image_topic: "/d435i/color/image_raw"
+image_topic: "/camera2/color/image_raw"
 output_path: "/home/neousys/output/"
 
 #camera calibration 

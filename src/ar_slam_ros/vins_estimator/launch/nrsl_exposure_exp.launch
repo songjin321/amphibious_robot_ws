@@ -1,0 +1,27 @@
+<launch>
+    <arg name="config_path" default = "$(find feature_tracker)/../config/realsense/nrsl_realsense_d435i_841512071464.yaml" />
+    <arg name="config_path2" default = "$(find feature_tracker)/../config/realsense/nrsl_realsense_d435_825312073422.yaml" />
+	<arg name="vins_path" default = "$(find feature_tracker)/../config/../" />
+    
+    <node name="feature_tracker_amphiRobot" pkg="feature_tracker" type="feature_tracker" output="screen">
+        <param name="config_file" type="string" value="$(arg config_path)" />
+        <param name="vins_folder" type="string" value="$(arg vins_path)" />
+    </node>
+
+    <node name="vins_estimator_amphiRobot" pkg="vins_estimator" type="vins_estimator" output="screen">
+       <param name="config_file" type="string" value="$(arg config_path)" />
+       <param name="vins_folder" type="string" value="$(arg vins_path)" />
+       <remap from="/feature_tracker/feature" to="/feature_tracker_amphiRobot/feature" />
+       <remap from="/feature_tracker/restart" to="/feature_tracker_amphiRobot/restart" />
+    </node>
+
+    <node name="feature_tracker" pkg="feature_tracker" type="feature_tracker" output="screen">
+        <param name="config_file" type="string" value="$(arg config_path2)" />
+        <param name="vins_folder" type="string" value="$(arg vins_path)" />
+    </node>
+
+    <node name="vins_estimator" pkg="vins_estimator" type="vins_estimator" output="screen">
+       <param name="config_file" type="string" value="$(arg config_path2)" />
+       <param name="vins_folder" type="string" value="$(arg vins_path)" />
+    </node>
+</launch>
