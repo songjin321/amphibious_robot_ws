@@ -1,4 +1,6 @@
 #include "feature_manager.h"
+#include "estimator.h"
+#include "PatchMatcher.h"
 #include <cv_bridge/cv_bridge.h>
 int FeaturePerId::endFrame()
 {
@@ -41,7 +43,8 @@ int FeatureManager::getFeatureCount()
     return cnt;
 }
 
-bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, feature_tracker::FeaturePtr frame, double td)
+bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, feature_tracker::FeaturePtr frame, double td
+, Estimator* estimator_ptr)
 {
     // from frame to construct image;
     // 获得描述子信息
@@ -150,6 +153,9 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
         }else
         // 使用光度patch进行匹配
         {
+            estimator_ptr->solver_flag;
+            PatchMatcher patch_matcher;
+            // patch_matcher.testWarpAffine();
             // 将所有三角化的地图点投影到当前相机上
             for (auto &it_per_id : feature )
             {

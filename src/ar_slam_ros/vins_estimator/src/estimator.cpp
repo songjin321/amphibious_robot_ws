@@ -121,7 +121,7 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
     ROS_DEBUG("new image coming ------------------------------------------");
     ROS_DEBUG("number of feature: %d", f_manager.getFeatureCount());
     map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> image;
-    if (f_manager.addFeatureCheckParallax(frame_count, image, frame, td))
+    if (f_manager.addFeatureCheckParallax(frame_count, image, frame, td, this))
         marginalization_flag = MARGIN_OLD;
     else
         marginalization_flag = MARGIN_SECOND_NEW;

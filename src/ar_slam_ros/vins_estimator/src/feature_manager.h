@@ -15,6 +15,7 @@ using namespace Eigen;
 
 #include "parameters.h"
 #include "feature_tracker/Feature.h"
+class Estimator;
 class FeaturePerFrame
 {
   public:
@@ -87,7 +88,7 @@ class FeatureManager
      * @return true 
      * @return false 
      */
-    bool addFeatureCheckParallax(int frame_count, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, feature_tracker::FeaturePtr, double td);
+    bool addFeatureCheckParallax(int frame_count, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, feature_tracker::FeaturePtr, double td, Estimator* estimator_ptr);
     void debugShow();
     vector<pair<Vector3d, Vector3d>> getCorresponding(int frame_count_l, int frame_count_r);
 
