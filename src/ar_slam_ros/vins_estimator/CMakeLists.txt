@@ -15,6 +15,9 @@ find_package(catkin REQUIRED COMPONENTS
     cv_bridge
     camera_model
     feature_tracker
+    vikit_common 
+    vikit_ros
+    svo
     )
 
 find_package(OpenCV REQUIRED)
@@ -35,6 +38,7 @@ catkin_package()
 add_library(vins_lib
 src/ORBextractor.cpp
 src/parameters.cpp
+src/PatchMatcher.cpp
 src/factor/pose_local_parameterization.cpp
 src/factor/projection_factor.cpp
 src/factor/projection_td_factor.cpp

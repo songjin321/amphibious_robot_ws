@@ -14,6 +14,7 @@ extern double scale_factor;   // scale in image pyramid
 extern int level_pyramid;     // number of pyramid levels
 extern int fIniThFAST;
 extern int fMinThFAST;
+extern int detector_type;
 //
 const double FOCAL_LENGTH = 460.0;
 const int WINDOW_SIZE = 10;

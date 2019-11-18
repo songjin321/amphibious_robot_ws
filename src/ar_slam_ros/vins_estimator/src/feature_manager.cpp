@@ -126,27 +126,46 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
     cout << "query_dep rows = " << query_dep.rows << " query_dep cols = " << query_dep.cols << endl;
     if (train_dep.rows !=0 && query_dep.rows != 0)
     {
-        // matcher_flann.match(query_dep, train_dep, matches); 
-        cv::BFMatcher matcher;
-        matcher.knnMatch(query_dep, train_dep, matches, 2);
-    }
+        // 使用描述子匹配
+        if (detector_type != 0)
+        {
+             // matcher_flann.match(query_dep, train_dep, matches); 
+            cv::BFMatcher matcher;
+            matcher.knnMatch(query_dep, train_dep, matches, 2);
+            // select the best matches
+            /*
+            float min_dis = std::min_element(
+                                matches.begin(), matches.end(),
+                                [](const cv::DMatch &m1, const cv::DMatch &m2) {
+                                    return m1.distance < m2.distance;
+                                })
+                                ->distance;
+            float match_ratio = 2.0; // ratio for selecting  good matches
+            */
+            for(int i=0; i < matches.size(); i++)
+            {
+                if (matches[i][0].distance < 0.5*matches[i][1].distance)
+                    good_matches.push_back(matches[i][0]);  
+            }
+        }else
+        // 使用光度patch进行匹配
+        {
+            // 将所有三角化的地图点投影到当前相机上
+            for (auto &it_per_id : feature )
+            {
+            }
+            // patch_matcher.reprojectPoints();
 
-    // select the best matches
-    /*
-    float min_dis = std::min_element(
-                        matches.begin(), matches.end(),
-                        [](const cv::DMatch &m1, const cv::DMatch &m2) {
-                            return m1.distance < m2.distance;
-                        })
-                        ->distance;
-    float match_ratio = 2.0; // ratio for selecting  good matches
-    */
-    for(int i=0; i < matches.size(); i++)
-    {
-        if (matches[i][0].distance < 0.5*matches[i][1].distance)
-            good_matches.push_back(matches[i][0]);  
-    }
+            // 以m个像素作为界限,如果投影点周围m个像素内存在新加点,但是没有追踪点,我们对这个地图点进行匹配
+            // patch_matcher.findCandiatePoints();
 
+            // 由IMU预测的当前帧的位姿和该地图点第一次观测到的位姿求一个Warp Affine Matrix
+
+            // 计算warp affine后的原图像patch
+
+            // 将原图像patch在当前帧寻找合适的匹配点
+        }
+    }
 
     for (cv::DMatch &m : good_matches)
     {
