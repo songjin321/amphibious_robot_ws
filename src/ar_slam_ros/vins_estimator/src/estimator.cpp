@@ -119,6 +119,7 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
 void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::Header &header)
 {
     ROS_DEBUG("new image coming ------------------------------------------");
+    Headers[frame_count] = header;
     ROS_DEBUG("number of feature: %d", f_manager.getFeatureCount());
     map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> image;
     if (f_manager.addFeatureCheckParallax(frame_count, image, frame, td, this))
@@ -130,7 +131,6 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
     ROS_DEBUG("%s", marginalization_flag ? "Non-keyframe" : "Keyframe");
     ROS_DEBUG("Solving %d", frame_count);
     ROS_DEBUG("number of feature: %d", f_manager.getFeatureCount());
-    Headers[frame_count] = header;
 
     ImageFrame imageframe(image, header.stamp.toSec());
     imageframe.pre_integration = tmp_pre_integration;

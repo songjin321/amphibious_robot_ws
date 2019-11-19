@@ -86,6 +86,8 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
     last_track_num = 0;
 
     // 候选待匹配的特征，id，描述子，每帧信息
+    std::vector<cv::Point2f> tracked_points;
+    std::vector<cv::Point2f> new_points;
     std::vector<std::tuple<int, cv::Mat, FeaturePerFrame>> candidate_feature;
     // int index_des = 0; // fuck,这是一个map,不是顺序容器!FUCK!!! 5个小时浪费了!!!
     for (auto &id_pts : image)
@@ -99,12 +101,15 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
 
         if (it == feature.end())
         {
+            new_points.push_back(cv::Point2f(id_pts.second[0].second(3), id_pts.second[0].second(4)));
             // 将这个点加入候选匹配集合
             cout << " candidate feature id = " << feature_id << endl;
             candidate_feature.push_back(std::make_tuple(feature_id, descriptors[feature_id].clone(), f_per_fra));
         }
         else
         {
+            tracked_points.push_back(cv::Point2f(id_pts.second[0].second(3), id_pts.second[0].second(4)));
+
             f_per_fra.offset = frame_count - it->start_frame; 
             it->feature_per_frame.push_back(f_per_fra);
             last_track_num++;
@@ -153,23 +158,64 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
         }else
         // 使用光度patch进行匹配
         {
-            estimator_ptr->solver_flag;
+            // 设置当前帧
             PatchMatcher patch_matcher;
-            // patch_matcher.testWarpAffine();
+            Vector3d P_curr = estimator_ptr->Ps[WINDOW_SIZE] + estimator_ptr->Rs[WINDOW_SIZE] * estimator_ptr->tic[0];
+            Quaterniond R_curr = Quaterniond(estimator_ptr->Rs[WINDOW_SIZE] * estimator_ptr->ric[0]);
+            cv::Mat image_current;
+            for (auto header_image : estimator_ptr->image_buf)
+            {
+                if (header_image.first.stamp.toSec() == estimator_ptr->Headers[WINDOW_SIZE].stamp.toSec())
+                {
+                    image_current = header_image.second;
+                }
+            }
+            patch_matcher.setCurFrame(image_current, P_curr, R_curr, estimator_ptr->Headers[WINDOW_SIZE].stamp.toSec());
+            // 设置新检测点和追踪点位置
+            patch_matcher.setPoints(tracked_points, new_points);
             // 将所有三角化的地图点投影到当前相机上
             for (auto &it_per_id : feature )
             {
+                int used_num;
+                used_num = it_per_id.feature_per_frame.size();
+                if (!(used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
+                    continue;
+                if (it_per_id.start_frame > WINDOW_SIZE * 3.0 / 4.0 || it_per_id.solve_flag != 1)
+                    continue;
+                int imu_i = it_per_id.start_frame;
+                Vector3d pts_i = it_per_id.feature_per_frame[0].point * it_per_id.estimated_depth;
+                Vector3d w_pts_i = estimator_ptr->Rs[imu_i] * (estimator_ptr->ric[0] * pts_i + estimator_ptr->tic[0]) + estimator_ptr->Ps[imu_i];
+                // 将3D点投影到图像平面上,如果投影点周围m个像素内存在新加点,但是没有追踪点,则对这个地图点进行匹配
+                if(patch_matcher.projectMapPointToCurFrameAndCheck(w_pts_i))
+                {
+                    // 设置ref frame
+                    Vector3d P_ref = estimator_ptr->Ps[imu_i] + estimator_ptr->Rs[imu_i] * estimator_ptr->tic[0];
+                    Quaterniond R_ref = Quaterniond(estimator_ptr->Rs[imu_i] * estimator_ptr->ric[0]);
+                    cv::Mat image_ref;
+                    for (auto header_image : estimator_ptr->image_buf)
+                    {
+                        if (header_image.first.stamp.toSec() == estimator_ptr->Headers[imu_i].stamp.toSec())
+                        {
+                            image_ref = header_image.second;
+                        }
+                    }
+                    patch_matcher.setRefFrame(image_current, P_ref, R_ref, estimator_ptr->Headers[imu_i].stamp.toSec());    
+                    // 将原图像在当前帧寻找合适的匹配点
+                    Eigen::Vector2d px_cur_result;
+                    if (patch_matcher.directMatch(w_pts_i, px_cur_result))
+                    {
+                        // 加入到滑动窗中
+                        Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
+                        Eigen::Vector3d px_world = patch_matcher.currCameraToWorld(px_cur_result);
+                        xyz_uv_velocity << px_world(0)/px_world(2), px_world(1)/px_world(2), 1.0, px_cur_result(0), px_cur_result(1), 0, 0;
+                        FeaturePerFrame f_per_fra(xyz_uv_velocity, estimator_ptr->Headers[imu_i].stamp.toSec());
+                        f_per_fra.offset = frame_count - it_per_id.start_frame;        
+                        it_per_id.feature_per_frame.push_back(f_per_fra);
+                        last_track_num++;
+                    }     
+                }
             }
-            // patch_matcher.reprojectPoints();
-
-            // 以m个像素作为界限,如果投影点周围m个像素内存在新加点,但是没有追踪点,我们对这个地图点进行匹配
-            // patch_matcher.findCandiatePoints();
-
-            // 由IMU预测的当前帧的位姿和该地图点第一次观测到的位姿求一个Warp Affine Matrix
-
-            // 计算warp affine后的原图像patch
-
-            // 将原图像patch在当前帧寻找合适的匹配点
+            good_matches.clear();
         }
     }
 
