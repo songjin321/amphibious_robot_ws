@@ -324,8 +324,8 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
             }
         }
     }
-    cout << "after add features" << endl;
-    f_manager.debugShow();
+    // cout << "after add features" << endl;
+    // f_manager.debugShow();
     if (solver_flag == INITIAL)
     {
         if (frame_count == WINDOW_SIZE)
@@ -384,8 +384,8 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
         last_R0 = Rs[0];
         last_P0 = Ps[0];
     }
-    cout << "after marginalization" << endl;
-    f_manager.debugShow();
+    // cout << "after marginalization" << endl;
+    // f_manager.debugShow();
 }
 bool Estimator::initialStructure()
 {

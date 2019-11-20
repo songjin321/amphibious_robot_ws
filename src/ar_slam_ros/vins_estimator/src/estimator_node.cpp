@@ -166,7 +166,6 @@ getMeasurements()
         image = ptr->image;
     else 
         LOG(WARNING) << "unclear image encode type";
-
     if(SHOW_TRACK_IMAGE)
     {
         m_estimator.lock();

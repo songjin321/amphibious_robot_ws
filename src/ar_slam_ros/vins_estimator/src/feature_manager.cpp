@@ -43,8 +43,7 @@ int FeatureManager::getFeatureCount()
     return cnt;
 }
 
-bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, feature_tracker::FeaturePtr frame, double td
-, Estimator* estimator_ptr)
+bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, feature_tracker::FeaturePtr frame, double td, Estimator *estimator_ptr)
 {
     // from frame to construct image;
     // 获得描述子信息
@@ -110,38 +109,40 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
         {
             tracked_points.push_back(cv::Point2f(id_pts.second[0].second(3), id_pts.second[0].second(4)));
 
-            f_per_fra.offset = frame_count - it->start_frame; 
+            f_per_fra.offset = frame_count - it->start_frame;
             it->feature_per_frame.push_back(f_per_fra);
             last_track_num++;
         }
     }
-    // 对候选特征点和地图匹配
-    cout << "candidate_feature size = " << candidate_feature.size() << endl;
+    // 对候选特征点和地图匹配,初始化后才开始进行匹配
     unordered_map<int, int> candidate_map; // 匹配上的点对，下标索引, 候选<->地图
-    cv::Mat train_dep;
-    cv::Mat query_dep;
-    std::vector<std::vector<cv::DMatch>> matches;
-    std::vector<cv::DMatch> good_matches;
-    for (auto &f : feature)
+    if (estimator_ptr->solver_flag == Estimator::SolverFlag::NON_LINEAR)
     {
-        train_dep.push_back(f.descriptor);
-    }
-    for (auto &f : candidate_feature)
-    {
-        query_dep.push_back(std::get<1>(f));
-    }
-    cout << "train rows = " << train_dep.rows << " train cols = " << train_dep.cols << endl;
-    cout << "query_dep rows = " << query_dep.rows << " query_dep cols = " << query_dep.cols << endl;
-    if (train_dep.rows !=0 && query_dep.rows != 0)
-    {
-        // 使用描述子匹配
-        if (detector_type != 0)
+        cout << "candidate_feature size = " << candidate_feature.size() << endl;
+        cv::Mat train_dep;
+        cv::Mat query_dep;
+        std::vector<std::vector<cv::DMatch>> matches;
+        std::vector<cv::DMatch> good_matches;
+        for (auto &f : feature)
         {
-             // matcher_flann.match(query_dep, train_dep, matches); 
-            cv::BFMatcher matcher;
-            matcher.knnMatch(query_dep, train_dep, matches, 2);
-            // select the best matches
-            /*
+            train_dep.push_back(f.descriptor);
+        }
+        for (auto &f : candidate_feature)
+        {
+            query_dep.push_back(std::get<1>(f));
+        }
+        cout << "train rows = " << train_dep.rows << " train cols = " << train_dep.cols << endl;
+        cout << "query_dep rows = " << query_dep.rows << " query_dep cols = " << query_dep.cols << endl;
+        if (train_dep.rows != 0 && query_dep.rows != 0)
+        {
+            // 使用描述子匹配
+            if (detector_type != 0)
+            {
+                // matcher_flann.match(query_dep, train_dep, matches);
+                cv::BFMatcher matcher;
+                matcher.knnMatch(query_dep, train_dep, matches, 2);
+                // select the best matches
+                /*
             float min_dis = std::min_element(
                                 matches.begin(), matches.end(),
                                 [](const cv::DMatch &m1, const cv::DMatch &m2) {
@@ -150,91 +151,106 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
                                 ->distance;
             float match_ratio = 2.0; // ratio for selecting  good matches
             */
-            for(int i=0; i < matches.size(); i++)
-            {
-                if (matches[i][0].distance < 0.5*matches[i][1].distance)
-                    good_matches.push_back(matches[i][0]);  
-            }
-        }else
-        // 使用光度patch进行匹配
-        {
-            // 设置当前帧
-            PatchMatcher patch_matcher;
-            Vector3d P_curr = estimator_ptr->Ps[WINDOW_SIZE] + estimator_ptr->Rs[WINDOW_SIZE] * estimator_ptr->tic[0];
-            Quaterniond R_curr = Quaterniond(estimator_ptr->Rs[WINDOW_SIZE] * estimator_ptr->ric[0]);
-            cv::Mat image_current;
-            for (auto header_image : estimator_ptr->image_buf)
-            {
-                if (header_image.first.stamp.toSec() == estimator_ptr->Headers[WINDOW_SIZE].stamp.toSec())
+                for (int i = 0; i < matches.size(); i++)
                 {
-                    image_current = header_image.second;
+                    if (matches[i][0].distance < 0.5 * matches[i][1].distance)
+                        good_matches.push_back(matches[i][0]);
                 }
             }
-            patch_matcher.setCurFrame(image_current, P_curr, R_curr, estimator_ptr->Headers[WINDOW_SIZE].stamp.toSec());
-            // 设置新检测点和追踪点位置
-            patch_matcher.setPoints(tracked_points, new_points);
-            // 将所有三角化的地图点投影到当前相机上
-            for (auto &it_per_id : feature )
+            else
+            // 使用光度patch进行匹配
             {
-                int used_num;
-                used_num = it_per_id.feature_per_frame.size();
-                if (!(used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
-                    continue;
-                if (it_per_id.start_frame > WINDOW_SIZE * 3.0 / 4.0 || it_per_id.solve_flag != 1)
-                    continue;
-                int imu_i = it_per_id.start_frame;
-                Vector3d pts_i = it_per_id.feature_per_frame[0].point * it_per_id.estimated_depth;
-                Vector3d w_pts_i = estimator_ptr->Rs[imu_i] * (estimator_ptr->ric[0] * pts_i + estimator_ptr->tic[0]) + estimator_ptr->Ps[imu_i];
-                // 将3D点投影到图像平面上,如果投影点周围m个像素内存在新加点,但是没有追踪点,则对这个地图点进行匹配
-                if(patch_matcher.projectMapPointToCurFrameAndCheck(w_pts_i))
+                cerr << "begin patch matching" << endl;
+                // 设置当前帧
+                PatchMatcher patch_matcher;
+                Vector3d P_curr = estimator_ptr->Ps[WINDOW_SIZE] + estimator_ptr->Rs[WINDOW_SIZE] * estimator_ptr->tic[0];
+                Quaterniond R_curr = Quaterniond(estimator_ptr->Rs[WINDOW_SIZE] * estimator_ptr->ric[0]);
+                cv::Mat image_current;
+                for (auto header_image : estimator_ptr->image_buf)
                 {
-                    // 设置ref frame
-                    Vector3d P_ref = estimator_ptr->Ps[imu_i] + estimator_ptr->Rs[imu_i] * estimator_ptr->tic[0];
-                    Quaterniond R_ref = Quaterniond(estimator_ptr->Rs[imu_i] * estimator_ptr->ric[0]);
-                    cv::Mat image_ref;
-                    for (auto header_image : estimator_ptr->image_buf)
+                    if (header_image.first.stamp.toSec() == estimator_ptr->Headers[WINDOW_SIZE].stamp.toSec())
                     {
-                        if (header_image.first.stamp.toSec() == estimator_ptr->Headers[imu_i].stamp.toSec())
-                        {
-                            image_ref = header_image.second;
-                        }
+                        image_current = header_image.second;
                     }
-                    patch_matcher.setRefFrame(image_current, P_ref, R_ref, estimator_ptr->Headers[imu_i].stamp.toSec());    
-                    // 将原图像在当前帧寻找合适的匹配点
-                    Eigen::Vector2d px_cur_result;
-                    if (patch_matcher.directMatch(w_pts_i, px_cur_result))
-                    {
-                        // 加入到滑动窗中
-                        Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
-                        Eigen::Vector3d px_world = patch_matcher.currCameraToWorld(px_cur_result);
-                        xyz_uv_velocity << px_world(0)/px_world(2), px_world(1)/px_world(2), 1.0, px_cur_result(0), px_cur_result(1), 0, 0;
-                        FeaturePerFrame f_per_fra(xyz_uv_velocity, estimator_ptr->Headers[imu_i].stamp.toSec());
-                        f_per_fra.offset = frame_count - it_per_id.start_frame;        
-                        it_per_id.feature_per_frame.push_back(f_per_fra);
-                        last_track_num++;
-                    }     
                 }
-            }
-            good_matches.clear();
-        }
-    }
+                cerr << "begin set current frame" << endl;
+                patch_matcher.setCurFrame(image_current, P_curr, R_curr, estimator_ptr->Headers[WINDOW_SIZE].stamp.toSec());
+                cerr << "set current frame ok!" << endl;
+                // 设置新检测点和追踪点位置
+                patch_matcher.setPoints(tracked_points, new_points);
+                // 将所有三角化的地图点投影到当前相机上
+                
+                for (auto &it_per_id : feature)
+                {
+                    int used_num;
+                    used_num = it_per_id.feature_per_frame.size();
+                    if (!(used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
+                        continue;
+                    if (it_per_id.start_frame > WINDOW_SIZE * 3.0 / 4.0 || it_per_id.solve_flag != 1)
+                        continue;
+                    int imu_i = it_per_id.start_frame;
+                    Vector3d pts_i = it_per_id.feature_per_frame[0].point * it_per_id.estimated_depth;
+                    Vector3d w_pts_i = estimator_ptr->Rs[imu_i] * (estimator_ptr->ric[0] * pts_i + estimator_ptr->tic[0]) + estimator_ptr->Ps[imu_i];
+                    // 将3D点投影到图像平面上,如果投影点周围m个像素内存在新加点,但是没有追踪点,则对这个地图点进行匹配
+                    if (patch_matcher.projectMapPointToCurFrameAndCheck(w_pts_i))
+                    {
+                        // 设置ref frame
+                        Vector3d P_ref = estimator_ptr->Ps[imu_i] + estimator_ptr->Rs[imu_i] * estimator_ptr->tic[0];
+                        Quaterniond R_ref = Quaterniond(estimator_ptr->Rs[imu_i] * estimator_ptr->ric[0]);
+                        cv::Mat image_ref;
+                        for (auto header_image : estimator_ptr->image_buf)
+                        {
+                            if (header_image.first.stamp.toSec() == estimator_ptr->Headers[imu_i].stamp.toSec())
+                            {
+                                image_ref = header_image.second;
+                            }
+                        }
+                        patch_matcher.setRefFrame(image_ref, P_ref, R_ref, estimator_ptr->Headers[imu_i].stamp.toSec());
+                        // 将原图像在当前帧寻找合适的匹配点
+                        cerr << "begin solve match point" << endl;
+                        /*
+                        Eigen::Vector2d px_cur_result;
+                        if (patch_matcher.directMatch(w_pts_i, px_cur_result))
+                        {
+                            cout << px_cur_result << endl;
+                            // plot it for debug
 
-    for (cv::DMatch &m : good_matches)
-    {
-        // if (m.distance < 0.05)
-        {
-            cout << "good match " << endl;
-            cout << "m.distance = " << m.distance;
-            cout << " query id = " << std::get<0>(candidate_feature[m.queryIdx]);
-            auto iter_feature = feature.begin();
-            std::advance(iter_feature, m.trainIdx);
-            cout << " train id = " << iter_feature->feature_id << endl;
-            candidate_map.insert({std::get<0>(candidate_feature[m.queryIdx]), iter_feature->feature_id});
-            // cout << "query descriptors = " << query_dep.row(m.queryIdx) << endl;
-            // cout << "train descriptors = " << train_dep.row(m.trainIdx) << endl;
+                            // 加入到滑动窗中 
+                            Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
+                            Eigen::Vector3d px_world = patch_matcher.currCameraToWorld(px_cur_result);
+                            xyz_uv_velocity << px_world(0)/px_world(2), px_world(1)/px_world(2), 1.0, px_cur_result(0), px_cur_result(1), 0, 0;
+                            FeaturePerFrame f_per_fra(xyz_uv_velocity, estimator_ptr->Headers[imu_i].stamp.toSec());
+                            f_per_fra.offset = frame_count - it_per_id.start_frame;        
+                            it_per_id.feature_per_frame.push_back(f_per_fra);
+                            last_track_num++;
+                        
+                        }
+                        */
+                        cerr << "end solve match point" << endl;
+                    }
+                }
+                good_matches.clear();
+                cerr << "end patch matching" << endl;
+            }
         }
+
+        for (cv::DMatch &m : good_matches)
+        {
+            // if (m.distance < 0.05)
+            {
+                cout << "good match " << endl;
+                cout << "m.distance = " << m.distance;
+                cout << " query id = " << std::get<0>(candidate_feature[m.queryIdx]);
+                auto iter_feature = feature.begin();
+                std::advance(iter_feature, m.trainIdx);
+                cout << " train id = " << iter_feature->feature_id << endl;
+                candidate_map.insert({std::get<0>(candidate_feature[m.queryIdx]), iter_feature->feature_id});
+                // cout << "query descriptors = " << query_dep.row(m.queryIdx) << endl;
+                // cout << "train descriptors = " << train_dep.row(m.trainIdx) << endl;
+            }
+        }
+        cout << "good matches: " << candidate_map.size() << endl;
     }
-    cout << "good matches: " << candidate_map.size() << endl;
     // candidate_map.clear(); //clear之后相当于关闭匹配的作用
     // 根据匹配结果处理特征点
     match_show.clear();
@@ -244,19 +260,18 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
         // 没匹配上的，新建一个特征点
         if (iter == candidate_map.end())
         {
-            
+
             FeaturePerId feature_per_id = FeaturePerId(std::get<0>(candidate_feature[i]), frame_count);
             feature_per_id.descriptor = std::get<1>(candidate_feature[i]).clone();
             feature.push_back(feature_per_id);
             FeaturePerFrame f_per_frame = std::get<2>(candidate_feature[i]);
             f_per_frame.offset = 0;
             feature.back().feature_per_frame.push_back(f_per_frame);
-            
         }
         else
         // 匹配上的，对应id的frame上加一个观测帧
         {
-            for(FeaturePerId& iter_feature : feature)
+            for (FeaturePerId &iter_feature : feature)
             {
                 if (iter_feature.feature_id == iter->second)
                 {
@@ -277,16 +292,16 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
                     // add to sliding window
                     // 判断一下,
                     bool wrong_match = false;
-                    for (auto& per_frame : iter_feature.feature_per_frame)
+                    for (auto &per_frame : iter_feature.feature_per_frame)
                     {
-                        if (per_frame.offset == f_per_frame.offset )
+                        if (per_frame.offset == f_per_frame.offset)
                             wrong_match = true;
                     }
                     if (!wrong_match)
                     {
                         iter_feature.feature_per_frame.push_back(f_per_frame);
                         last_track_num++;
-                    }    
+                    }
                     break;
                 }
             }
@@ -511,7 +526,7 @@ void FeatureManager::removeBackShiftDepth(Eigen::Matrix3d marg_R, Eigen::Vector3
         {
             Eigen::Vector3d uv_i = it->feature_per_frame[0].point;
             it->feature_per_frame.erase(it->feature_per_frame.begin());
-            for (FeaturePerFrame& feature_frame : it->feature_per_frame) // fuck! auto害死人啊,auto默认是拷贝,不是引用
+            for (FeaturePerFrame &feature_frame : it->feature_per_frame) // fuck! auto害死人啊,auto默认是拷贝,不是引用
                 feature_frame.offset--;
             if (it->feature_per_frame.size() < 2)
             {
@@ -552,7 +567,7 @@ void FeatureManager::removeBack()
         else
         {
             it->feature_per_frame.erase(it->feature_per_frame.begin());
-            for (FeaturePerFrame& feature_frame : it->feature_per_frame) // fuck! auto害死人啊,这是拷贝,不是引用
+            for (FeaturePerFrame &feature_frame : it->feature_per_frame) // fuck! auto害死人啊,这是拷贝,不是引用
                 feature_frame.offset--;
             if (it->feature_per_frame.size() == 0)
                 feature.erase(it);

@@ -33,9 +33,9 @@ public:
         new_points_ = new_points;
     };
 
-    bool directMatch(Eigen::Vector3d point, Eigen::Vector2d& px_cur);
+    bool directMatch(Eigen::Vector3d& point, Eigen::Vector2d& px_cur);
     double calDistance(cv::Point2f pt1, cv::Point2f pt2);
-    Eigen::Vector3d currCameraToWorld(Eigen::Vector2d px_cam)
+    Eigen::Vector3d currCameraToWorld(Eigen::Vector2d& px_cam)
     {
         return frame_cur_->c2f(px_cam);
     }
@@ -53,6 +53,6 @@ private:
     int check_threshold = 10; // 判断该点是否需要匹配的阈值
     int align_max_iter= 10;
     svo::Matcher matcher;
-    uint8_t patch_[patch_size_*patch_size_] __attribute__ ((aligned (16)));
-    uint8_t patch_with_border_[(patch_size_+2)*(patch_size_+2)] __attribute__ ((aligned (16)));
+    uint8_t patch_[patch_size_*patch_size_];
+    uint8_t patch_with_border_[(patch_size_+2)*(patch_size_+2)];
 };
