@@ -169,6 +169,7 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
             std::vector<int> track_second_index;         // 光流匹配线第二个点在窗口中的下标
             std::vector<cv::Point2f> track_first_point;  // 光流匹配线第一个点的位置
             std::vector<cv::Point2f> track_second_point; // 光流匹配线第二个点的位置
+            cv::Mat cur_image = show_imgs[10].clone();
             for (int i = 0; i < show_imgs.size(); i++)
             {
                 auto iter_header_image = all_image_frame.find(Headers[i].stamp.toSec());
@@ -220,8 +221,7 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
             show_imgs_third_row.push_back(show_imgs[8]);
             show_imgs_third_row.push_back(show_imgs[9]);
             show_imgs_third_row.push_back(show_imgs[10]);
-            cv::Mat fill_black(show_imgs.back().size(), show_imgs.back().type(), cv::Scalar(1));
-            show_imgs_third_row.push_back(fill_black);
+            show_imgs_third_row.push_back(cur_image);
 
             cv::Mat first_row_image, sencod_row_image, third_row_image;
             cv::hconcat(show_imgs_first_row, first_row_image);
@@ -299,8 +299,30 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
          
                     cv::line(show_image, first_point, second_point, cv::Scalar(0, 0, 255));
                 }
+                
+                // 画光度patch的匹配结果
+                cout << " project_show size = " << f_manager.project_show.size() << endl;
+                for(auto& image_patch_cors : f_manager.project_show)
+                {
+                    // 
+                    cv::Point2i point_cur, point_ref;
+                    point_cur.x = image_patch_cors.cur_px_init.x + image_width * 3;
+                    point_cur.y = image_patch_cors.cur_px_init.y + image_height * 2;
+                    point_ref.x = image_patch_cors.ref_px.x + image_width * width_factor[image_patch_cors.ref_index];
+                    point_ref.y = image_patch_cors.ref_px.y + image_height * height_factor[image_patch_cors.ref_index];     
+                    
+                    // 画当前帧投影点
+                    cv::circle(show_image, point_cur, 2, cv::Scalar(0, 0, 255), 2);
+                    char name[10];
+                    sprintf(name, "%d", image_patch_cors.id);
+                    cv::putText(show_image, name, point_cur, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0));
+                
+                    // 画线连接匹配点
+                    cv::line(show_image, point_cur, point_ref, cv::Scalar(255, 0, 0), 2);
+                }
 
-                cv::resize(show_image, show_image, cv::Size(), 0.7, 0.7);
+
+                cv::resize(show_image, show_image, cv::Size(), 0.65, 0.65);
             }
             show_image_update = true;
         }

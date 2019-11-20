@@ -102,7 +102,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
         {
             new_points.push_back(cv::Point2f(id_pts.second[0].second(3), id_pts.second[0].second(4)));
             // 将这个点加入候选匹配集合
-            cout << " candidate feature id = " << feature_id << endl;
+            // cout << " candidate feature id = " << feature_id << endl;
             candidate_feature.push_back(std::make_tuple(feature_id, descriptors[feature_id].clone(), f_per_fra));
         }
         else
@@ -118,7 +118,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
     unordered_map<int, int> candidate_map; // 匹配上的点对，下标索引, 候选<->地图
     if (estimator_ptr->solver_flag == Estimator::SolverFlag::NON_LINEAR)
     {
-        cout << "candidate_feature size = " << candidate_feature.size() << endl;
+        // cout << "candidate_feature size = " << candidate_feature.size() << endl;
         cv::Mat train_dep;
         cv::Mat query_dep;
         std::vector<std::vector<cv::DMatch>> matches;
@@ -143,14 +143,14 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
                 matcher.knnMatch(query_dep, train_dep, matches, 2);
                 // select the best matches
                 /*
-            float min_dis = std::min_element(
-                                matches.begin(), matches.end(),
-                                [](const cv::DMatch &m1, const cv::DMatch &m2) {
-                                    return m1.distance < m2.distance;
-                                })
-                                ->distance;
-            float match_ratio = 2.0; // ratio for selecting  good matches
-            */
+                float min_dis = std::min_element(
+                                    matches.begin(), matches.end(),
+                                    [](const cv::DMatch &m1, const cv::DMatch &m2) {
+                                        return m1.distance < m2.distance;
+                                    })
+                                    ->distance;
+                float match_ratio = 2.0; // ratio for selecting  good matches
+                */
                 for (int i = 0; i < matches.size(); i++)
                 {
                     if (matches[i][0].distance < 0.5 * matches[i][1].distance)
@@ -163,25 +163,31 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
                 cerr << "begin patch matching" << endl;
                 // 设置当前帧
                 PatchMatcher patch_matcher;
+                project_show.clear();
                 Vector3d P_curr = estimator_ptr->Ps[WINDOW_SIZE] + estimator_ptr->Rs[WINDOW_SIZE] * estimator_ptr->tic[0];
                 Quaterniond R_curr = Quaterniond(estimator_ptr->Rs[WINDOW_SIZE] * estimator_ptr->ric[0]);
                 cv::Mat image_current;
+                double cur_time = estimator_ptr->Headers[WINDOW_SIZE].stamp.toSec();
                 for (auto header_image : estimator_ptr->image_buf)
                 {
-                    if (header_image.first.stamp.toSec() == estimator_ptr->Headers[WINDOW_SIZE].stamp.toSec())
+                    if (header_image.first.stamp.toSec() == cur_time)
                     {
                         image_current = header_image.second;
                     }
                 }
-                cerr << "begin set current frame" << endl;
-                patch_matcher.setCurFrame(image_current, P_curr, R_curr, estimator_ptr->Headers[WINDOW_SIZE].stamp.toSec());
-                cerr << "set current frame ok!" << endl;
-                // 设置新检测点和追踪点位置
-                patch_matcher.setPoints(tracked_points, new_points);
-                // 将所有三角化的地图点投影到当前相机上
+                if (!patch_matcher.setCurFrame(image_current, P_curr, R_curr, cur_time))
+                    goto end;
+    
+                // 设置新检测点和追踪上的特征点的位置
+                patch_matcher.tracked_points_ = tracked_points;
+                patch_matcher.new_points_ = new_points;
                 
+                // 将所有三角化的地图点投影到当前相机上                
                 for (auto &it_per_id : feature)
                 {
+                    ImagePatchCorresponds image_patch_cors;
+                    image_patch_cors.id = it_per_id.feature_id;
+                    image_patch_cors.patch_size = patch_matcher.patch_size_;
                     int used_num;
                     used_num = it_per_id.feature_per_frame.size();
                     if (!(used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
@@ -189,6 +195,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
                     if (it_per_id.start_frame > WINDOW_SIZE * 3.0 / 4.0 || it_per_id.solve_flag != 1)
                         continue;
                     int imu_i = it_per_id.start_frame;
+                    image_patch_cors.ref_index = imu_i;
                     Vector3d pts_i = it_per_id.feature_per_frame[0].point * it_per_id.estimated_depth;
                     Vector3d w_pts_i = estimator_ptr->Rs[imu_i] * (estimator_ptr->ric[0] * pts_i + estimator_ptr->tic[0]) + estimator_ptr->Ps[imu_i];
                     // 将3D点投影到图像平面上,如果投影点周围m个像素内存在新加点,但是没有追踪点,则对这个地图点进行匹配
@@ -198,39 +205,44 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
                         Vector3d P_ref = estimator_ptr->Ps[imu_i] + estimator_ptr->Rs[imu_i] * estimator_ptr->tic[0];
                         Quaterniond R_ref = Quaterniond(estimator_ptr->Rs[imu_i] * estimator_ptr->ric[0]);
                         cv::Mat image_ref;
+                        double ref_time = estimator_ptr->Headers[imu_i].stamp.toSec();
+                        Eigen::Vector2d ref_px = it_per_id.feature_per_frame[0].uv;
                         for (auto header_image : estimator_ptr->image_buf)
                         {
-                            if (header_image.first.stamp.toSec() == estimator_ptr->Headers[imu_i].stamp.toSec())
+                            if (header_image.first.stamp.toSec() == ref_time)
                             {
                                 image_ref = header_image.second;
                             }
                         }
-                        patch_matcher.setRefFrame(image_ref, P_ref, R_ref, estimator_ptr->Headers[imu_i].stamp.toSec());
+                        if (!patch_matcher.setRefFrameAndFeature(image_ref, P_ref, R_ref, ref_time, ref_px))
+                            continue;
                         // 将原图像在当前帧寻找合适的匹配点
                         cerr << "begin solve match point" << endl;
-                        /*
-                        Eigen::Vector2d px_cur_result;
-                        if (patch_matcher.directMatch(w_pts_i, px_cur_result))
+                        Eigen::Vector2d px_cur_final;
+                        if (patch_matcher.directMatch(w_pts_i, px_cur_final, image_patch_cors))
                         {
-                            cout << px_cur_result << endl;
-                            // plot it for debug
-
+                            cout << px_cur_final << endl;
                             // 加入到滑动窗中 
+                            /*
                             Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
+                            frame_cur_->c2f(px_cam);
                             Eigen::Vector3d px_world = patch_matcher.currCameraToWorld(px_cur_result);
                             xyz_uv_velocity << px_world(0)/px_world(2), px_world(1)/px_world(2), 1.0, px_cur_result(0), px_cur_result(1), 0, 0;
                             FeaturePerFrame f_per_fra(xyz_uv_velocity, estimator_ptr->Headers[imu_i].stamp.toSec());
                             f_per_fra.offset = frame_count - it_per_id.start_frame;        
                             it_per_id.feature_per_frame.push_back(f_per_fra);
                             last_track_num++;
-                        
+                            */
                         }
-                        */
                         cerr << "end solve match point" << endl;
+                        project_show.push_back(image_patch_cors);
                     }
                 }
-                good_matches.clear();
-                cerr << "end patch matching" << endl;
+                end:
+                {
+                    good_matches.clear();
+                    cerr << "end patch matching" << endl;
+                }
             }
         }
 

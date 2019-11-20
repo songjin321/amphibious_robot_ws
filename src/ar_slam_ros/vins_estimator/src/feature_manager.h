@@ -67,6 +67,20 @@ class FeaturePerId
     int endFrame();
 };
 
+struct ImagePatchCorresponds
+{
+  int id;                     ///< 这个Patch在滑动窗中的id
+  cv::Mat ref_patch;          ///< 在参考帧中的patch块
+  cv::Mat ref_patch_warp;     ///< 在参考帧中经过warp affine后的patch块
+  int ref_index;              ///< 参考帧在滑动窗中的id
+  cv::Mat cur_patch_init;     ///< 在当前帧中直接投影的初始patch块
+  cv::Mat cur_patch_final;    ///< 在当前帧中优化后的patch块
+  size_t patch_size;          ///< 图像块的大小
+  cv::Point2f ref_px;         ///< 在参考帧中的投影位置
+  cv::Point2f cur_px_init;    ///< 在当前帧投影的初始位置
+  cv::Point2f cur_px_final;   ///< 在当前帧投影的最终位置
+};
+
 class FeatureManager
 {
   public:
@@ -105,6 +119,7 @@ class FeatureManager
     list<FeaturePerId> feature;
     int last_track_num;
     vector<pair<int, FeaturePerId>> match_show; // old_id, 和其匹配的特征点
+    vector<ImagePatchCorresponds> project_show; // 画图显示将3D点投影到当前帧进行光度Patch匹配的结果.
     
   private:
     double compensatedParallax2(const FeaturePerId &it_per_id, int frame_count);
