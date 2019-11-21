@@ -207,7 +207,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
                     }
 
                     //draw speed line
-
+                    /*
                     Vector2d tmp_cur_un_pts (trackerData[i].cur_un_pts[j].x, trackerData[i].cur_un_pts[j].y);
                     Vector2d tmp_pts_velocity (trackerData[i].pts_velocity[j].x, trackerData[i].pts_velocity[j].y);
                     Vector3d tmp_prev_un_pts;
@@ -220,6 +220,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
                     char name[10];
                     sprintf(name, "%d", trackerData[i].ids[j]);
                     cv::putText(tmp_img, name, trackerData[i].cur_pts[j], cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0));
+                    */
                 }
             }
             //cv::imshow("vis", stereo_img);

@@ -185,7 +185,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
 
             if (detector_type == 0)
             {
-                cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.01, MIN_DIST, mask);
+                cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.1, MIN_DIST, mask);
                 if (MAX_CNT - forw_pts.size() != n_pts.size())
                     std::cout << "this image have not enough texture, n_pts.size + forw_pts.size = " << (int)(n_pts.size() + forw_pts.size()) << std::endl;
                 for (int i=0; i < n_pts.size(); i++)

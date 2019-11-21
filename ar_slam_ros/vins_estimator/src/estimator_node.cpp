@@ -166,24 +166,21 @@ getMeasurements()
         image = ptr->image;
     else 
         LOG(WARNING) << "unclear image encode type";
-    if(SHOW_TRACK_IMAGE)
+    m_estimator.lock();
+    if (estimator.image_buf.size() > 200)
+        estimator.image_buf.pop_front();
+    ImageBuf temp;
+    temp.header = img_msg->header;
+    temp.image = image;
+    if (detector_type == 0)
     {
-        m_estimator.lock();
-        if (estimator.image_buf.size() > 200)
-            estimator.image_buf.pop_front();
-        ImageBuf temp;
-        temp.header = img_msg->header;
-        temp.image = image;
-        if (detector_type == 0)
-        {
-            cv::cvtColor(image, temp.image_gray, cv::COLOR_BGR2GRAY);
-            TicToc tic;
-            cv::buildOpticalFlowPyramid(temp.image_gray, temp.image_pyr, cv::Size(21, 21), temp.maxLvl, true);
-            ROS_DEBUG("buildOpticalFlowPyramid image costs: %fms", tic.toc());
-        }
-        estimator.image_buf.push_back(temp);
-        m_estimator.unlock();
+        cv::cvtColor(image, temp.image_gray, cv::COLOR_BGR2GRAY);
+        TicToc tic;
+        cv::buildOpticalFlowPyramid(temp.image_gray, temp.image_pyr, cv::Size(21, 21), temp.maxLvl, true);
+        ROS_DEBUG("buildOpticalFlowPyramid image costs: %fms", tic.toc());
     }
+    estimator.image_buf.push_back(temp);
+    m_estimator.unlock();
 
 #ifdef DETECT_ORB
     cout << "begin detect orb feature " << endl;
@@ -429,7 +426,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "vins_estimator");
     ros::NodeHandle n("~");
-    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug);
+    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
     readParameters(n);
     estimator.setParameter();
     feature_detector= cv::ORB::create(num_of_features, scale_factor, level_pyramid);
