@@ -41,13 +41,14 @@ make
 sudo make install
 ```
 - Protobuf
+```
 sudo apt install protobuf-compiler
 ```
 
-如果在tx2下需要
+如果在tx2下需要特别版本的ceres和eigen
 - ceres 1.14 with eigen 3.3.7. [ceres-solver/ceres-solver#288](https://github.com/ceres-solver/ceres-solver/issues/288)
 
-### 4.安装驱动
+### 4.安装相机驱动
 1. tx2+realsensed435i
 
 2. 正常x86+realsensed435i
@@ -59,7 +60,7 @@ sudo apt install protobuf-compiler
 3. 如果在tx2上，为了防止内存爆炸
 catkin build vins_estimator -j1
 
-4. 没有相机驱动,不编译曝光控制部分
+4. 如果没有安装相机驱动,只打算跑包,则可以不编译曝光控制部分
 ```
 catkin config --blacklist realsense2_camera exposure_controller
 ```
@@ -71,23 +72,22 @@ catkin build feature_tracker -DENABLE_GPU=ON
 
 ### 1. 测试AmhpiVIO
 
-从实验室网盘上下载包[ampho_vio.bag]()
+从实验室网盘上下载包[amphi_vio.bag]()
 
 1. roslaunch vins_estimator nrsl_d435i.launch
-2.1 rosbag play ampho_vio.bag
-or
-2.2 roslaunch realsense2_camera rs_maplab.launch
+2. rosbag play amphi_vio.bag 或者使用相机 roslaunch realsense2_camera rs_maplab.launch
 3. roslaunch navigation rviz.launch
 
 ### 2. 测试ActiveView
 
-从实验室网盘上下载包[ampho_vio.bag]()
+从实验室网盘上下载包[active_view.bag]()
 
-1. roslaunch  nrsl_d435i.launch
-2. rosbag play ampho_vio.bag
-3. roslaunch navigation rviz.launch
+1. roslaunch vins_estimator nrsl_d435i.launch
+2. roslaunch active_slam nrsl_d435i.launch
+3. rosbag play active_view.bag
+4. roslaunch navigation rviz.launch
 
-### 3. Test ActiveExposure 
+### 3. 测试ActiveExposure 
 
 1. roslaunch exposure_controller exposure_controller.launch
 

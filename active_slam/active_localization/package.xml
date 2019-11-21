@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>active_slam</name>
+  <name>active_localization</name>
   <version>0.0.0</version>
-  <description>The active_slam package</description>
+  <description>The active_localization package</description>
 
   <maintainer email="songjinxs@163.com">songjin</maintainer>
 

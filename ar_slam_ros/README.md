@@ -1,3 +1,6 @@
+# AmphiVIO
+适用于两栖机器人俯仰运动的VIO,基于VINS-Mono改进而来
+
 # VINS-Mono
 ## A Robust and Versatile Monocular Visual-Inertial State Estimator
 
