@@ -23,6 +23,14 @@
 #include <opencv2/core/eigen.hpp>
 #include "feature_tracker/Feature.h"
 #include <mutex>
+struct ImageBuf
+{
+    std_msgs::Header header;
+    cv::Mat image;
+    cv::Mat image_gray;
+    std::vector<cv::Mat> image_pyr;
+    int maxLvl = 3;
+};
 class Estimator
 {
   public:
@@ -103,7 +111,7 @@ class Estimator
     Matrix3d back_R0, last_R, last_R0;
     Vector3d back_P0, last_P, last_P0;
     std_msgs::Header Headers[(WINDOW_SIZE + 1)];
-    deque<pair<std_msgs::Header, cv::Mat> > image_buf;
+    deque<ImageBuf> image_buf;
 
     IntegrationBase *pre_integrations[(WINDOW_SIZE + 1)];
     Vector3d acc_0, gyr_0;

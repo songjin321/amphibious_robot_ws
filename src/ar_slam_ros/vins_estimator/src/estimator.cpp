@@ -119,9 +119,10 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
 void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::Header &header)
 {
     ROS_DEBUG("new image coming ------------------------------------------");
+    Headers[frame_count] = header;
     ROS_DEBUG("number of feature: %d", f_manager.getFeatureCount());
     map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> image;
-    if (f_manager.addFeatureCheckParallax(frame_count, image, frame, td))
+    if (f_manager.addFeatureCheckParallax(frame_count, image, frame, td, this))
         marginalization_flag = MARGIN_OLD;
     else
         marginalization_flag = MARGIN_SECOND_NEW;
@@ -130,7 +131,6 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
     ROS_DEBUG("%s", marginalization_flag ? "Non-keyframe" : "Keyframe");
     ROS_DEBUG("Solving %d", frame_count);
     ROS_DEBUG("number of feature: %d", f_manager.getFeatureCount());
-    Headers[frame_count] = header;
 
     ImageFrame imageframe(image, header.stamp.toSec());
     imageframe.pre_integration = tmp_pre_integration;
@@ -147,12 +147,12 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
         {
             // cout << setprecision(16) << std::fixed << "header images stamp = " << header_image.first.stamp.toSec() << " header "
             // << j << " stamp = " <<  Headers[j].stamp.toSec() << endl;
-            if (header_image.first.stamp.toSec() == Headers[j].stamp.toSec())
+            if (header_image.header.stamp.toSec() == Headers[j].stamp.toSec())
             {
                 cv::Mat image_color;
                 // if (header_image.second.ty)
                 // cv::cvtColor(header_image.second, image_color, CV_GRAY2BGR);
-                show_imgs.push_back(header_image.second);
+                show_imgs.push_back(header_image.image);
                 j++;
                 if (j > WINDOW_SIZE)
                     break;
@@ -169,6 +169,7 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
             std::vector<int> track_second_index;         // 光流匹配线第二个点在窗口中的下标
             std::vector<cv::Point2f> track_first_point;  // 光流匹配线第一个点的位置
             std::vector<cv::Point2f> track_second_point; // 光流匹配线第二个点的位置
+            cv::Mat cur_image = show_imgs[10].clone();
             for (int i = 0; i < show_imgs.size(); i++)
             {
                 auto iter_header_image = all_image_frame.find(Headers[i].stamp.toSec());
@@ -202,7 +203,6 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
                 last_image_features = curr_image_features;
                 cv::putText(show_imgs[i], std::to_string(Headers[i].stamp.toSec()), cv::Point2f(10.0, 15.0), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255));
             }
-
             // 把show_imgs给整合成一张图片,  3行x4列
             std::vector<cv::Mat> show_imgs_first_row;
             show_imgs_first_row.push_back(show_imgs[0]);
@@ -220,8 +220,7 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
             show_imgs_third_row.push_back(show_imgs[8]);
             show_imgs_third_row.push_back(show_imgs[9]);
             show_imgs_third_row.push_back(show_imgs[10]);
-            cv::Mat fill_black(show_imgs.back().size(), show_imgs.back().type(), cv::Scalar(1));
-            show_imgs_third_row.push_back(fill_black);
+            show_imgs_third_row.push_back(cur_image);
 
             cv::Mat first_row_image, sencod_row_image, third_row_image;
             cv::hconcat(show_imgs_first_row, first_row_image);
@@ -237,8 +236,8 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
 
                 int image_width = show_imgs.back().cols;
                 int image_height = show_imgs.back().rows;
-                std::vector<int> width_factor = {0, 1, 2, 3, 3, 2, 1, 0, 0, 1, 2};
-                std::vector<int> height_factor = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2};
+                std::vector<int> width_factor = {0, 1, 2, 3, 3, 2, 1, 0, 0, 1, 2, 3};
+                std::vector<int> height_factor = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2};
 
                 // 画当前帧和地图匹配结果
                 cout << " match_show size = " << f_manager.match_show.size() << endl;
@@ -264,25 +263,11 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
                     int point1_x = point_first.x + image_width * width_factor[first_point_index];
                     int point1_y = point_first.y + image_height * height_factor[first_point_index];               
 
-                    int point2_x = point_second.x + image_width * width_factor.back();
-                    int point2_y = point_second.y + image_height * height_factor.back();
+                    int point2_x = point_second.x + image_width * width_factor[10];
+                    int point2_y = point_second.y + image_height * height_factor[10];
                     // cout << "point1_x = " << point1_x << " point1_y = " << point1_y << " point2_x = " << point2_x << " point2_y = " << point2_y << endl;
                     // 画线连接匹配点
                     cv::line(show_image, cv::Point2i(point1_x, point1_y), cv::Point2i(point2_x, point2_y), cv::Scalar(255, 0, 0), 3);
-
-                    /*
-                    // 把旧的id画在上面的图上
-                    char name[10];
-                    sprintf(name, "%d", old_id_featurePerID.first);
-                    cv::Point2f pt(point2_x, point2_y - image_height);
-                    cv::circle(show_image, pt, 2, cv::Scalar(0, 255, 0), 2);
-                    cv::putText(show_image, name, pt, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0));
-
-                    // 把匹配的特征点在下面的图上标红
-                    sprintf(name, "%d", old_id_featurePerID.second.feature_id);
-                    cv::Point2f pt_new_id(point2_x, point2_y);
-                    cv::circle(show_image, pt_new_id, 2, cv::Scalar(0, 0, 255), 2);
-                    */
                 }
 
                 // 画光流跟踪结果
@@ -297,13 +282,48 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
                     second_point.x = track_second_point[i].x + image_width * width_factor[track_second_index[i]];
                     second_point.y = track_second_point[i].y + image_height * height_factor[track_second_index[i]];
          
-                    cv::line(show_image, first_point, second_point, cv::Scalar(0, 0, 255));
+                    // cv::line(show_image, first_point, second_point, cv::Scalar(0, 0, 255));
                 }
-
-                cv::resize(show_image, show_image, cv::Size(), 0.7, 0.7);
+                
+                // 画光度patch的匹配结果
+                cout << " project_show size = " << f_manager.project_show.size() << endl;
+                for(auto& image_patch_cors : f_manager.project_show)
+                {
+                    cv::Point2i point_cur, point_ref, point_cur_final;
+                    point_cur.x = image_patch_cors.cur_px_init.x + image_width * 3;
+                    point_cur.y = image_patch_cors.cur_px_init.y + image_height * 2;
+                    point_cur_final.x = image_patch_cors.cur_px_final.x + image_width * 3;
+                    point_cur_final.y = image_patch_cors.cur_px_final.y + image_height * 2;
+                    point_ref.x = image_patch_cors.ref_px.x + image_width * width_factor[image_patch_cors.ref_index];
+                    point_ref.y = image_patch_cors.ref_px.y + image_height * height_factor[image_patch_cors.ref_index];     
+                    
+                    // 光度匹配成功,画出匹配成功的绿色特征点.并连线
+                    // 没成功则画红色投影点的位置
+                    
+                    if (image_patch_cors.match_success)
+                    {
+                        cv::circle(show_image, point_cur_final, 2, cv::Scalar(0, 255, 0), 2);
+                        char name[10];
+                        sprintf(name, "%d", image_patch_cors.id);
+                        cv::putText(show_image, name, point_cur_final, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0));
+                         
+                        // 画线连接匹配点
+                        cv::line(show_image, point_cur_final, point_ref, cv::Scalar(255, 0, 0), 2);
+                    }
+                    else
+                    {
+                        cv::circle(show_image, point_cur, 2, cv::Scalar(0, 0, 255), 2);
+                        char name[10];
+                        sprintf(name, "%d", image_patch_cors.id);
+                        cv::putText(show_image, name, point_cur, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0));
+                    }
+                }
+                cv::resize(show_image, show_image, cv::Size(), 0.65, 0.65);
             }
+            
             show_image_update = true;
         }
+        
     }
 
     if (ESTIMATE_EXTRINSIC == 2)
@@ -324,8 +344,8 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
             }
         }
     }
-    cout << "after add features" << endl;
-    f_manager.debugShow();
+    // cout << "after add features" << endl;
+    // f_manager.debugShow();
     if (solver_flag == INITIAL)
     {
         if (frame_count == WINDOW_SIZE)
@@ -375,6 +395,7 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
         f_manager.removeFailures();
         ROS_DEBUG("marginalization costs: %fms", t_margin.toc());
         // prepare output of VINS
+        
         key_poses.clear();
         for (int i = 0; i <= WINDOW_SIZE; i++)
             key_poses.push_back(Ps[i]);
@@ -383,9 +404,11 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
         last_P = Ps[WINDOW_SIZE];
         last_R0 = Rs[0];
         last_P0 = Ps[0];
+        
     }
-    cout << "after marginalization" << endl;
-    f_manager.debugShow();
+    // cout << "after marginalization" << endl;
+    // f_manager.debugShow();
+    // cout << "after marginalization show" << endl;
 }
 bool Estimator::initialStructure()
 {

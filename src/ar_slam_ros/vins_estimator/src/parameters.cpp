@@ -5,6 +5,7 @@ double scale_factor;   // scale in image pyramid
 int level_pyramid;     // number of pyramid levels
 int fIniThFAST;
 int fMinThFAST;
+int detector_type;
 int SHOW_TRACK_IMAGE;
 double INIT_DEPTH;
 double MIN_PARALLAX;
@@ -65,6 +66,7 @@ void readParameters(ros::NodeHandle &n)
     level_pyramid = fsSettings["level_pyramid"];   // number of features
     fIniThFAST = fsSettings["fIniThFAST"];
     fMinThFAST = fsSettings["fMinThFAST"];
+    detector_type = fsSettings["detector_type"];
     SHOW_TRACK_IMAGE = fsSettings["SHOW_TRACK_IMAGE"];
     SOLVER_TIME = fsSettings["max_solver_time"];
     NUM_ITERATIONS = fsSettings["max_num_iterations"];

@@ -18,6 +18,17 @@ sudo apt install libgoogle-glog-dev
 sudo apt install libeigen3-dev
 - ceres     
 https://github.com/ceres-solver/ceres-solver
+- Sophus
+```
+git clone https://github.com/strasdat/Sophus.git
+cd Sophus
+git checkout a621ff
+mkdir build
+cd build
+cmake ..
+make
+sudo make install
+```
 
 如果在tx2下需要
 - ceres 1.14 with eigen 3.3.7. [ceres-solver/ceres-solver#288](https://github.com/ceres-solver/ceres-solver/issues/288)
@@ -41,6 +52,8 @@ https://github.com/ceres-solver/ceres-solver
 没有相机驱动,不编译曝光控制部分
 catkin config --blacklist realsense2_camera exposure_controller
 
+默认不使用GPU编译,如果要使用GPU-SFIT
+catkin build feature_tracker -DENABLE_GPU=ON
 ## 运行测试
 
 ### 1. 测试ar_slam

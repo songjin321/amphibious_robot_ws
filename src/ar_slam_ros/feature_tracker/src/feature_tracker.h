@@ -16,8 +16,10 @@
 #include "parameters.h"
 #include "tic_toc.h"
 #include "BRIEF.h"
+#ifdef ENABLE_GPU
 #include "cudaImage.h"
 #include "cudaSift.h"
+#endif
 #include "opencv2/xfeatures2d.hpp"
 using namespace std;
 using namespace camodocal;
@@ -69,6 +71,8 @@ class FeatureTracker
     static int n_id;
     cv::Mat descriptors;
     DVision::BRIEF brief_feature_detector;
+    #ifdef ENABLE_GPU
     SiftData siftData;
+    #endif
     Ptr<Feature2D> f2d = xfeatures2d::SIFT::create();
 };
