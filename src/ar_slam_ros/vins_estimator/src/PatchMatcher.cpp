@@ -16,31 +16,28 @@ PatchMatcher::PatchMatcher()
   cam_ = new vk::PinholeCamera(640, 480, 606.8794, 605.7115, 318.1654, 242.6335, 0.1319, -0.1987);
 }
 
-bool PatchMatcher::setCurFrame(cv::Mat &img_cur, Eigen::Vector3d &t_w_cur, Eigen::Quaterniond &q_w_cur, double timestamp)
+bool PatchMatcher::setCurFrame(std::vector<cv::Mat>& img_cur_pyr, Eigen::Vector3d &t_w_cur, Eigen::Quaterniond &q_w_cur, double timestamp)
 {
-  if (img_cur.empty())
+  if (img_cur_pyr.empty())
   {
     std::cerr << "empty current image for matching" << std::endl;
     return false;
   }
-  cv::Mat img_cur_gray;
-  cv::cvtColor(img_cur, img_cur_gray, cv::COLOR_BGR2GRAY);
-  frame_cur_ = new svo::Frame(cam_, img_cur_gray, timestamp);
+
+  frame_cur_ = new svo::Frame(cam_, img_cur_pyr, timestamp);
   frame_cur_->T_f_w_ = Sophus::SE3(q_w_cur, t_w_cur).inverse();
   return true;
 }
 
-bool PatchMatcher::setRefFrameAndFeature(cv::Mat& img_ref, Eigen::Vector3d& t_w_ref, 
+bool PatchMatcher::setRefFrameAndFeature(std::vector<cv::Mat>& img_ref_pyr, Eigen::Vector3d& t_w_ref, 
 Eigen::Quaterniond& q_w_ref, double timestamp, Eigen::Vector2d& ref_px)
 {
-  if (img_ref.empty())
+  if (img_ref_pyr.empty())
   {
     std::cerr << "empty reference image for matching" << std::endl;
     return false;
   }
-  cv::Mat img_ref_gray;
-  cv::cvtColor(img_ref, img_ref_gray, cv::COLOR_BGR2GRAY);
-  frame_ref_ = new svo::Frame(cam_, img_ref_gray, timestamp);
+  frame_ref_ = new svo::Frame(cam_, img_ref_pyr, timestamp);
   frame_ref_->T_f_w_ = Sophus::SE3(q_w_ref, t_w_ref).inverse();
   px_ref_ = ref_px;
   ref_ftr_ = new svo::Feature(frame_ref_, px_ref_, 0);
@@ -102,8 +99,8 @@ bool PatchMatcher::directMatch(Eigen::Vector3d& point, Eigen::Vector2d& px_cur_f
   p0.emplace_back(px_ref_.x(), px_ref_.y());
   p1.emplace_back(px_cur_.x(), px_cur_.y());
   cv::calcOpticalFlowPyrLK(
-    ref_ftr_->frame->img_pyr_[0], 
-    frame_cur_->img_pyr_[0], 
+    frame_ref_->img_pyr_, 
+    frame_cur_->img_pyr_, 
     p0, 
     p1, 
     status, err, cv::Size(21, 21), 3, criteria, cv::OPTFLOW_USE_INITIAL_FLOW);

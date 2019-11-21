@@ -312,7 +312,7 @@ public:
             std::vector<uchar> status;
             std::vector<float> err;
             std::cerr << "before track pts size = " << old_pts.size() << std::endl;
-            cv::calcOpticalFlowPyrLK(old_gray, new_gray, old_pts, new_pts, status, err, cv::Size(21, 21), 3);
+            cv::calcOpticalFlowPyrLK(old_correct_gray, new_correct_gray, old_pts, new_pts, status, err, cv::Size(21, 21), 3);
             for (size_t i = 0; i < new_pts.size(); i++)
             {
                 if (status[i] && !inBorder(new_pts[i]))
@@ -373,6 +373,7 @@ public:
 
         old_gray = new_gray.clone();
         old_color = new_color.clone();
+        old_correct_gray = new_correct_gray.clone();
         old_pts = new_pts;
     }
     int getTrackedNmt()
@@ -387,7 +388,7 @@ public:
             ROS_WARN("uncorrect g function size!");
             return;
         }
-        double g_max = g[255] - g[0];
+        // double g_max = g[255] - g[0];
         for (int i = 0; i < 256; ++i)
         {
             // double g_set = (g[i] - g[0]) * 255.0/g_max;

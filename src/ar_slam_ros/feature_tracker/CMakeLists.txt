@@ -13,23 +13,27 @@ find_package(catkin REQUIRED COMPONENTS
     camera_model
     message_generation
     )
+option(ENABLE_GPU "enable gpu SIFT detection")
+if (ENABLE_GPU)
+  message(WARNING "Enable gpu SIFT detection")
+  add_definitions(-DENABLE_GPU)
+  find_package(CUDA)
+  if (NOT CUDA_FOUND)
+    message(STATUS "CUDA not found. Project will not be built.")
+  endif(NOT CUDA_FOUND)
 
-find_package(CUDA)
-if (NOT CUDA_FOUND)
-  message(STATUS "CUDA not found. Project will not be built.")
-endif(NOT CUDA_FOUND)
-
-if (WIN32)
-  set(EXTRA_CXX_FLAGS "/DVERBOSE /D_CRT_SECURE_NO_WARNINGS ")
-  list(APPEND CUDA_NVCC_FLAGS "-arch=sm_35;--compiler-options;-O2;-DVERBOSE") 
-endif()
-if (UNIX)
-  if (APPLE)
-    set(EXTRA_CXX_FLAGS "-DVERBOSE -msse2")
+  if (WIN32)
+    set(EXTRA_CXX_FLAGS "/DVERBOSE /D_CRT_SECURE_NO_WARNINGS ")
     list(APPEND CUDA_NVCC_FLAGS "-arch=sm_35;--compiler-options;-O2;-DVERBOSE") 
-  else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
-    list(APPEND CUDA_NVCC_FLAGS "-lineinfo;-ccbin;/usr/bin/gcc-5;--compiler-options;-O2;-D_FORCE_INLINES;-DVERBOSE_NOT") 
+  endif()
+  if (UNIX)
+    if (APPLE)
+      set(EXTRA_CXX_FLAGS "-DVERBOSE -msse2")
+      list(APPEND CUDA_NVCC_FLAGS "-arch=sm_35;--compiler-options;-O2;-DVERBOSE") 
+    else()
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
+      list(APPEND CUDA_NVCC_FLAGS "-lineinfo;-ccbin;/usr/bin/gcc-5;--compiler-options;-O2;-D_FORCE_INLINES;-DVERBOSE_NOT") 
+    endif()
   endif()
 endif()
 
@@ -73,14 +77,25 @@ set(cuda_sources
   CudaSift/cudautils.h
 )
 
-cuda_add_executable(feature_tracker
-    src/feature_tracker_node.cpp
-    src/parameters.cpp
-    src/feature_tracker.cpp
-    src/BRIEF.cpp
-    src/DUtils/Random.cpp
-    src/DUtils/Timestamp.cpp
-    ${cuda_sources}
-    )
-
-target_link_libraries(feature_tracker ${catkin_LIBRARIES} ${OpenCV_LIBS} ${CUDA_cudadevrt_LIBRARY} )
+if(ENABLE_GPU)
+  cuda_add_executable(feature_tracker
+      src/feature_tracker_node.cpp
+      src/parameters.cpp
+      src/feature_tracker.cpp
+      src/BRIEF.cpp
+      src/DUtils/Random.cpp
+      src/DUtils/Timestamp.cpp
+      ${cuda_sources}
+      )
+  target_link_libraries(feature_tracker ${catkin_LIBRARIES} ${OpenCV_LIBS} ${CUDA_cudadevrt_LIBRARY} )
+else()
+  add_executable(feature_tracker
+  src/feature_tracker_node.cpp
+  src/parameters.cpp
+  src/feature_tracker.cpp
+  src/BRIEF.cpp
+  src/DUtils/Random.cpp
+  src/DUtils/Timestamp.cpp
+  )
+  target_link_libraries(feature_tracker ${catkin_LIBRARIES} ${OpenCV_LIBS})
+endif()

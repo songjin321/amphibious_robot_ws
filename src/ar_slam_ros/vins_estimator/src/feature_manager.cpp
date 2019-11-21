@@ -165,13 +165,13 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
                 project_show.clear();
                 Vector3d P_curr = estimator_ptr->Ps[WINDOW_SIZE] + estimator_ptr->Rs[WINDOW_SIZE] * estimator_ptr->tic[0];
                 Quaterniond R_curr = Quaterniond(estimator_ptr->Rs[WINDOW_SIZE] * estimator_ptr->ric[0]);
-                cv::Mat image_current;
+                std::vector<cv::Mat> image_current;
                 double cur_time = estimator_ptr->Headers[WINDOW_SIZE].stamp.toSec();
                 for (auto header_image : estimator_ptr->image_buf)
                 {
-                    if (header_image.first.stamp.toSec() == cur_time)
+                    if (header_image.header.stamp.toSec() == cur_time)
                     {
-                        image_current = header_image.second;
+                        image_current = header_image.image_pyr;
                     }
                 }
                 if (!patch_matcher.setCurFrame(image_current, P_curr, R_curr, cur_time))
@@ -203,14 +203,14 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
                         // 设置ref frame
                         Vector3d P_ref = estimator_ptr->Ps[imu_i] + estimator_ptr->Rs[imu_i] * estimator_ptr->tic[0];
                         Quaterniond R_ref = Quaterniond(estimator_ptr->Rs[imu_i] * estimator_ptr->ric[0]);
-                        cv::Mat image_ref;
+                        std::vector<cv::Mat> image_ref;
                         double ref_time = estimator_ptr->Headers[imu_i].stamp.toSec();
                         Eigen::Vector2d ref_px = it_per_id.feature_per_frame[0].uv;
                         for (auto header_image : estimator_ptr->image_buf)
                         {
-                            if (header_image.first.stamp.toSec() == ref_time)
+                            if (header_image.header.stamp.toSec() == ref_time)
                             {
-                                image_ref = header_image.second;
+                                image_ref = header_image.image_pyr;
                             }
                         }
                         if (!patch_matcher.setRefFrameAndFeature(image_ref, P_ref, R_ref, ref_time, ref_px))

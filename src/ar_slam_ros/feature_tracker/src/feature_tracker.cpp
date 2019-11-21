@@ -39,8 +39,10 @@ void reduceVector(cv::Mat &v, vector<uchar> status)
 
 FeatureTracker::FeatureTracker() : brief_feature_detector()
 {
+    #ifdef ENABLE_GPU
     InitSiftData(siftData, 32768, true, true);
     InitCuda(0);
+    #endif
 }
 
 void FeatureTracker::setMask()
@@ -92,12 +94,17 @@ void FeatureTracker::addPoints(cv::Mat n_pts_descriptors)
 
 void FeatureTracker::Init()
 {
+    #ifdef ENABLE_GPU
+    std::cout << "enable gpu" << std::endl;
     // 将第一次初始化gpu放在这,因为第一次检测sift需要接近1s左右
     CudaImage img;
     cv::Mat temp(512, 512, CV_32FC1, cv::Scalar(0.5));
     img.Allocate(512, 512, iAlignUp(512, 128), false, NULL, (float *)temp.data);
     img.Download();
     ExtractSift(siftData, img, 5, initBlur, thresh, 1.0f, false);
+    #else
+    std::cout << "not enable gpu" << std::endl;
+    #endif
 }
 
 void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
@@ -186,7 +193,8 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                     cv::Mat descriptor(1, 128, CV_32F);
                     n_pts_descriptors.push_back(descriptor);
                 }
-            } else 
+            } 
+            else 
             {
                 std::vector<std::pair<cv::KeyPoint, cv::Mat> > coarse_keypoints_descriptors;
                 std::vector<std::pair<cv::KeyPoint, cv::Mat>> fine_keypoints_descriptors;
@@ -203,7 +211,9 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                     {
                         coarse_keypoints_descriptors.push_back({sift_keypoints_opencv[i], descriptor.row(i)});
                     }
-                }else if (detector_type == 2)
+                }
+                #ifdef ENABLE_GPU
+                else if (detector_type == 2)
                 {
                     cv::Mat limg;
                     forw_img.convertTo(limg, CV_32FC1);
@@ -230,7 +240,11 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                         coarse_keypoints_descriptors.push_back({keypoint, descriptor});
                     }
                 }
-
+                #endif
+                else
+                {
+                    ROS_ERROR("uncorrect detector type, use SIFT-GPU without GPU enable!!!");
+                }
                 // 这部分算法来自cv::goodFeatureToTrack
                 // 对每一个点如果其MIN_DIST距离内有比其响应强的，则不考虑这个点
                 // 如果这个点在mask中，也不考虑这个点
@@ -333,7 +347,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                     // std::cout << "descriptors = " << keypoint_descriptor.second.clone() << std::endl;
                 }
             }
-                    
+            
             // draw it 
             /*
             cv::Mat drawImg = forw_img.clone();

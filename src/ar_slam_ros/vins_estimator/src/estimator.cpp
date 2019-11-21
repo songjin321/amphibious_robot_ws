@@ -147,12 +147,12 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
         {
             // cout << setprecision(16) << std::fixed << "header images stamp = " << header_image.first.stamp.toSec() << " header "
             // << j << " stamp = " <<  Headers[j].stamp.toSec() << endl;
-            if (header_image.first.stamp.toSec() == Headers[j].stamp.toSec())
+            if (header_image.header.stamp.toSec() == Headers[j].stamp.toSec())
             {
                 cv::Mat image_color;
                 // if (header_image.second.ty)
                 // cv::cvtColor(header_image.second, image_color, CV_GRAY2BGR);
-                show_imgs.push_back(header_image.second);
+                show_imgs.push_back(header_image.image);
                 j++;
                 if (j > WINDOW_SIZE)
                     break;
@@ -263,8 +263,8 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
                     int point1_x = point_first.x + image_width * width_factor[first_point_index];
                     int point1_y = point_first.y + image_height * height_factor[first_point_index];               
 
-                    int point2_x = point_second.x + image_width * width_factor.back();
-                    int point2_y = point_second.y + image_height * height_factor.back();
+                    int point2_x = point_second.x + image_width * width_factor[10];
+                    int point2_y = point_second.y + image_height * height_factor[10];
                     // cout << "point1_x = " << point1_x << " point1_y = " << point1_y << " point2_x = " << point2_x << " point2_y = " << point2_y << endl;
                     // 画线连接匹配点
                     cv::line(show_image, cv::Point2i(point1_x, point1_y), cv::Point2i(point2_x, point2_y), cv::Scalar(255, 0, 0), 3);

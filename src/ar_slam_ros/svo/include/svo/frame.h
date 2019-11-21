@@ -56,6 +56,7 @@ public:
   int                           last_published_ts_;     //!< Timestamp of last publishing.
 
   Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp);
+  Frame(vk::AbstractCamera* cam, std::vector<cv::Mat>& img, double timestamp);
   ~Frame();
 
   /// Initialize new frame and create image pyramid.

@@ -171,7 +171,17 @@ getMeasurements()
         m_estimator.lock();
         if (estimator.image_buf.size() > 200)
             estimator.image_buf.pop_front();
-        estimator.image_buf.push_back({img_msg->header, image});
+        ImageBuf temp;
+        temp.header = img_msg->header;
+        temp.image = image;
+        if (detector_type == 0)
+        {
+            cv::cvtColor(image, temp.image_gray, cv::COLOR_BGR2GRAY);
+            TicToc tic;
+            cv::buildOpticalFlowPyramid(temp.image_gray, temp.image_pyr, cv::Size(21, 21), temp.maxLvl, true);
+            ROS_DEBUG("buildOpticalFlowPyramid image costs: %fms", tic.toc());
+        }
+        estimator.image_buf.push_back(temp);
         m_estimator.unlock();
     }
 
@@ -436,7 +446,7 @@ int main(int argc, char **argv)
     ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
     ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
     ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
-    ros::Subscriber sub_raw_image = n.subscribe(IMAGE_TOPIC, 100, img_callback); // save image for show
+    ros::Subscriber sub_raw_image = n.subscribe(IMAGE_TOPIC, 100, img_callback); // save image for patcg
     std::thread measurement_process{process};
     std::thread show_slidingWindow(&Estimator::showSlidingWindow, &estimator);
     ros::spin();

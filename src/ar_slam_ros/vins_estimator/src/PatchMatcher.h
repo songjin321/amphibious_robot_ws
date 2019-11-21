@@ -22,9 +22,9 @@ public:
     PatchMatcher();
     ~PatchMatcher();
 
-    bool setCurFrame(cv::Mat& img_cur, Eigen::Vector3d& t_w_cur, Eigen::Quaterniond& q_w_cur, double timestamp);
+    bool setCurFrame(std::vector<cv::Mat>& img_cur_pyr, Eigen::Vector3d& t_w_cur, Eigen::Quaterniond& q_w_cur, double timestamp);
 
-    bool setRefFrameAndFeature(cv::Mat& img_ref, Eigen::Vector3d& t_w_ref, 
+    bool setRefFrameAndFeature(std::vector<cv::Mat>& img_ref_pyr, Eigen::Vector3d& t_w_ref, 
     Eigen::Quaterniond& q_w_ref, double timestamp, Eigen::Vector2d& ref_px);
 
     bool projectMapPointToCurFrameAndCheck(Eigen::Vector3d& point);
