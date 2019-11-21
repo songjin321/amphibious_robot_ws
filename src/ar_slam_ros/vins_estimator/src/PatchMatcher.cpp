@@ -68,6 +68,8 @@ bool PatchMatcher::projectMapPointToCurFrameAndCheck(Eigen::Vector3d &point)
 
 bool PatchMatcher::directMatch(Eigen::Vector3d& point, Eigen::Vector2d& px_cur_final, ImagePatchCorresponds& image_patch_cors)
 {
+  // svo
+  /*
   // 计算ref和cur的变化
   Sophus::SE3 T_cur_ref(frame_cur_->T_f_w_ * frame_ref_->T_f_w_.inverse());
 
@@ -76,9 +78,7 @@ bool PatchMatcher::directMatch(Eigen::Vector3d& point, Eigen::Vector2d& px_cur_f
   svo::warp::getWarpMatrixAffine(
       *ref_ftr_->frame->cam_, *frame_cur_->cam_, ref_ftr_->px, ref_ftr_->f,
       (ref_ftr_->frame->pos() - point).norm(), T_cur_ref, ref_ftr_->level, A_cur_ref);
-  std::cout << "A_cur_ref = " << A_cur_ref << std::endl;
   int search_level_ = svo::warp::getBestSearchLevel(A_cur_ref, svo::Config::nPyrLevels() - 1);
-  std::cout << "level_cur = " << search_level_ << std::endl;
   svo::warp::warpAffine(
       A_cur_ref, ref_ftr_->frame->img_pyr_[ref_ftr_->level], ref_ftr_->px,
       ref_ftr_->level, search_level_, halfpatch_size_ + 1, patch_with_border_);
@@ -92,12 +92,34 @@ bool PatchMatcher::directMatch(Eigen::Vector3d& point, Eigen::Vector2d& px_cur_f
       frame_cur_->img_pyr_[search_level_], patch_with_border_, patch_,
       align_max_iter, px_scaled);
   px_cur_final = px_scaled * (1 << search_level_);
+  */
 
+  // opencv
+  std::vector<uchar> status;
+  std::vector<float> err;
+  cv::TermCriteria criteria = cv::TermCriteria((cv::TermCriteria::COUNT) + (cv::TermCriteria::EPS), 10, 0.03);
+  std::vector<cv::Point2f> p0,p1;
+  p0.emplace_back(px_ref_.x(), px_ref_.y());
+  p1.emplace_back(px_cur_.x(), px_cur_.y());
+  cv::calcOpticalFlowPyrLK(
+    ref_ftr_->frame->img_pyr_[0], 
+    frame_cur_->img_pyr_[0], 
+    p0, 
+    p1, 
+    status, err, cv::Size(21, 21), 3, criteria, cv::OPTFLOW_USE_INITIAL_FLOW);
+  bool success = false;
+  if (status[0] == 1)
+  {
+    px_cur_final(0) = p1[0].x;
+    px_cur_final(1) = p1[0].y;
+    success = true;
+  }
   // 对image_patch_cors进行赋值
   image_patch_cors.cur_px_init = cv::Point2f(px_cur_.x(), px_cur_.y());
   image_patch_cors.ref_px = cv::Point2f(px_ref_.x(), px_ref_.y());
   image_patch_cors.cur_px_final = cv::Point2f(px_cur_final.x(), px_cur_final.y());
   image_patch_cors.ref_patch_warp = cv::Mat(halfpatch_size_, halfpatch_size_, CV_8U, patch_);
+  image_patch_cors.match_success = success;
   // image_patch_cors.cur_patch_init = 
   return success;
 }

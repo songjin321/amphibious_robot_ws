@@ -79,6 +79,7 @@ struct ImagePatchCorresponds
   cv::Point2f ref_px;         ///< 在参考帧中的投影位置
   cv::Point2f cur_px_init;    ///< 在当前帧投影的初始位置
   cv::Point2f cur_px_final;   ///< 在当前帧投影的最终位置
+  bool match_success;         ///< 光度匹配是否成功
 };
 
 class FeatureManager

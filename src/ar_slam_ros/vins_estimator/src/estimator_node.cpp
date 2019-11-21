@@ -438,7 +438,7 @@ int main(int argc, char **argv)
     ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
     ros::Subscriber sub_raw_image = n.subscribe(IMAGE_TOPIC, 100, img_callback); // save image for show
     std::thread measurement_process{process};
-    std::thread show_slidingWindos(&Estimator::showSlidingWindow, &estimator);
+    std::thread show_slidingWindow(&Estimator::showSlidingWindow, &estimator);
     ros::spin();
 
     return 0;

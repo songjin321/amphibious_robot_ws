@@ -160,7 +160,6 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
             else
             // 使用光度patch进行匹配
             {
-                cerr << "begin patch matching" << endl;
                 // 设置当前帧
                 PatchMatcher patch_matcher;
                 project_show.clear();
@@ -217,24 +216,18 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, map<int, vector<pa
                         if (!patch_matcher.setRefFrameAndFeature(image_ref, P_ref, R_ref, ref_time, ref_px))
                             continue;
                         // 将原图像在当前帧寻找合适的匹配点
-                        cerr << "begin solve match point" << endl;
                         Eigen::Vector2d px_cur_final;
                         if (patch_matcher.directMatch(w_pts_i, px_cur_final, image_patch_cors))
                         {
-                            cout << px_cur_final << endl;
-                            // 加入到滑动窗中 
-                            /*
+                            // 加入到滑动窗中          
                             Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
-                            frame_cur_->c2f(px_cam);
-                            Eigen::Vector3d px_world = patch_matcher.currCameraToWorld(px_cur_result);
-                            xyz_uv_velocity << px_world(0)/px_world(2), px_world(1)/px_world(2), 1.0, px_cur_result(0), px_cur_result(1), 0, 0;
-                            FeaturePerFrame f_per_fra(xyz_uv_velocity, estimator_ptr->Headers[imu_i].stamp.toSec());
+                            Eigen::Vector3d px_world = patch_matcher.frame_cur_->c2f(px_cur_final);
+                            xyz_uv_velocity << px_world(0)/px_world(2), px_world(1)/px_world(2), 1.0, px_cur_final(0), px_cur_final(1), 0, 0;
+                            FeaturePerFrame f_per_fra(xyz_uv_velocity, cur_time);
                             f_per_fra.offset = frame_count - it_per_id.start_frame;        
                             it_per_id.feature_per_frame.push_back(f_per_fra);
-                            last_track_num++;
-                            */
+                            last_track_num++;              
                         }
-                        cerr << "end solve match point" << endl;
                         project_show.push_back(image_patch_cors);
                     }
                 }
@@ -355,19 +348,17 @@ void FeatureManager::debugShow()
         ROS_ASSERT(it.feature_per_frame.size() != 0);
         ROS_ASSERT(it.start_frame >= 0);
         ROS_ASSERT(it.used_num >= 0);
-        if (it.feature_id == 59)
+  
+        ROS_DEBUG("%d,%d,%d ", it.feature_id, it.used_num, it.start_frame);
+        int sum = 0;
+        for (auto &j : it.feature_per_frame)
         {
-            ROS_DEBUG("%d,%d,%d ", it.feature_id, it.used_num, it.start_frame);
-            int sum = 0;
-            for (auto &j : it.feature_per_frame)
-            {
-                //ROS_DEBUG("is_used %d,", int(j.is_used));
-                printf("offset = %d \n", j.offset);
-                sum += 1;
-                printf("(%lf,%lf) \n", j.point(0), j.point(1));
-            }
-            // ROS_ASSERT(it.used_num == sum);
+            //ROS_DEBUG("is_used %d,", int(j.is_used));
+            printf("offset = %d \n", j.offset);
+            sum += 1;
+            printf("(%lf,%lf) \n", j.point(0), j.point(1));
         }
+     
     }
 }
 
@@ -540,7 +531,7 @@ void FeatureManager::removeBackShiftDepth(Eigen::Matrix3d marg_R, Eigen::Vector3
             it->feature_per_frame.erase(it->feature_per_frame.begin());
             for (FeaturePerFrame &feature_frame : it->feature_per_frame) // fuck! auto害死人啊,auto默认是拷贝,不是引用
                 feature_frame.offset--;
-            if (it->feature_per_frame.size() < 2)
+            if (it->feature_per_frame.size() < 2 || it->feature_per_frame.front().offset!=0)
             {
                 feature.erase(it);
                 continue;
@@ -581,7 +572,7 @@ void FeatureManager::removeBack()
             it->feature_per_frame.erase(it->feature_per_frame.begin());
             for (FeaturePerFrame &feature_frame : it->feature_per_frame) // fuck! auto害死人啊,这是拷贝,不是引用
                 feature_frame.offset--;
-            if (it->feature_per_frame.size() == 0)
+            if (it->feature_per_frame.size() == 0 || it->feature_per_frame.front().offset!=0) // 第一帧被移动出滑动窗,删除特征点
                 feature.erase(it);
         }
     }
