@@ -2,6 +2,6 @@
     <node name="set_exposure" pkg="dynamic_reconfigure" type="dynparam.py" output="screen">
     </node>
     <node name="exposure_node" pkg="exposure_controller" type="camera_optimization" output="screen">
-    <remap from="/camera/color/image_raw" to="/d435i/color/image_raw" />
+        <remap from="/camera/color/image_raw" to="/d435i/color/image_raw" />
     </node>
 </launch>
