@@ -10,7 +10,7 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <depend>catkin_simple</depend>
-  <depend>protobuf_catkin</depend>
+
   <depend>rpg_vi_utils</depend>
 
   <export>

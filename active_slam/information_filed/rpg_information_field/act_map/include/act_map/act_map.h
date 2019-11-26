@@ -14,12 +14,23 @@
 #include <voxblox/io/layer_io.h>
 #include <voxblox/integrator/occupancy_integrator.h>
 #include <rpg_common/timer.h>
+#include <vi_utils/vi_jacobians.h>
+#include <vi_utils/map.h>
 
 #include "act_map/vis_score.h"
 #include "act_map/common.h"
 #include "act_map/sampler.h"
 #include "act_map/kernel_layer_integrator.h"
 #include "act_map/optim_orient.h"
+
+#include "ceres/ceres.h"
+#include "ceres/rotation.h"
+#include<fstream>
+
+// #include "act_map_msgs/ViewInformation.h"
+
+using namespace act_map::optim_orient;
+
 namespace act_map
 {
 struct ActMapOptions
@@ -88,6 +99,10 @@ public:
                               const std::vector<double>& ranges);
   // 每次拓展只把相机当前位置新建立一个块，保证只有这一个块
   void addCenterToKernelLayer(const rpg::Pose& Twb);
+  
+  void getBestView_Optimal(const Vec3dVec& vis_points, 
+                           Eigen::Vector3d& vox_twc, 
+                           Eigen::Vector3d& best_view);
   // map query
   void getBestViewsAt(const size_t cam_id,
                       const int samples_per_side,
@@ -96,7 +111,9 @@ public:
                       Vec3dVec* vox_cs,
                       Vec3dVec* best_views,
                       std::vector<double>* values,
-                      voxblox::LongIndexVector* global_idxs) const;
+                      voxblox::LongIndexVector* global_idxs,
+                                Eigen::Vector3d& vox_twc, 
+                                Eigen::Vector3d& optimal_best_view) const;
   void getSpecificViewInfoAt(const size_t cam_id,
                               const int samples_per_side,
                               const bool only_updated,
@@ -189,6 +206,10 @@ public:
     }
   }
 
+  Eigen::Vector3d vox_twc_global;
+  Eigen::Vector3d best_view_global;
+
+
 private:
   mutable std::mutex occ_mutex_;
   OccupancyLayer::Ptr occ_layer_;
@@ -216,6 +237,46 @@ private:
   // other variables
   double occ_block_half_diagonal_;
   double ker_block_half_diagonal_;
+};
+
+struct CostFunctor{
+
+    CostFunctor(double info, Eigen::Vector3d w_p, Eigen::Vector3d w_c):
+    info_(info), w_p_(w_p), w_c_(w_c)
+    {
+    }
+
+    template <typename T>
+    bool operator()(const T* const w_c_view, T* residuals) const
+    {
+        T c_e3[3];
+        T c_view[3];
+        T w_e3[3];
+        w_e3[0] = T(0.0);
+        w_e3[1] = T(0.0);
+        w_e3[2] = T(1.0);
+        c_view[0] = T(w_p_[0] - w_c_[0]);
+        c_view[1] = T(w_p_[1] - w_c_[1]);
+        c_view[2] = T(w_p_[2] - w_c_[2]);
+        ceres::QuaternionRotatePoint(w_c_view, w_e3, c_e3);
+        T normal_z = (c_view[0] * c_e3[0] + c_view[1] * c_e3[1] + c_view[2] * c_e3[2])
+        /(sqrt(c_view[0] * c_view[0] + c_view[1] * c_view[1] + c_view[2] * c_view[2]));
+        residuals[0] = T(info_) * exp(-normal_z);
+        // std::cout << " info = " << info_  << " w_p = " << w_p_ 
+        // << " normal_z = " << normal_z  << " residual = " << residuals[0] << std::endl;
+        return true;
+    }
+
+    static ceres::CostFunction* Create(const double info, const Eigen::Vector3d w_p, const Eigen::Vector3d w_c)
+    {
+        return (new ceres::AutoDiffCostFunction<CostFunctor, 1, 4>(
+            new CostFunctor(info, w_p, w_c)
+        ));
+    }
+private:
+    double info_; // 路标点对当前位置相机的信息量
+    Eigen::Vector3d w_p_; // 路标点在世界坐标的位置
+    Eigen::Vector3d w_c_; // 当前相机在世界坐标系的位置
 };
 
 template <typename T>
@@ -387,8 +448,8 @@ template <typename T>
 void ActMap<T>::updateKernelLayerIncremental()
 {
   std::lock_guard<std::mutex> lock_ker(ker_mutex_);
-  LOG(INFO) << "update Kernel: recomputed kernel size = " << kblk_idxs_to_recompute_.size()
-  << " updated kernel size = " << kblk_idxs_to_update_.size();
+  // LOG(INFO) << "update Kernel: recomputed kernel size = " << kblk_idxs_to_recompute_.size()
+  // << " updated kernel size = " << kblk_idxs_to_update_.size();
   voxblox::BlockIndexList del_block_idxs;
   voxblox::BlockIndexList add_block_idxs;
   rpg::Timer timer;
@@ -399,10 +460,10 @@ void ActMap<T>::updateKernelLayerIncremental()
   ker_integrator_->addPointsToKernelLayer(
       last_added_occ_pts_, kblk_idxs_to_update_, &add_block_idxs);
 
-  LOG(WARNING) << "Kernel Updater: "
-          << "processed " << last_deleted_occ_pts_.size() << " deleted points, "
-          << last_added_occ_pts_.size() << " added points.";
-  LOG(WARNING) << "Update kernels took " << timer.stop() * 1000 << " ms.";
+  // LOG(WARNING) << "Kernel Updater: "
+  //         << "processed " << last_deleted_occ_pts_.size() << " deleted points, "
+  //         << last_added_occ_pts_.size() << " added points.";
+  // LOG(WARNING) << "Update kernels took " << timer.stop() * 1000 << " ms.";
 
   timer.start();
   voxblox::BlockIndexList recompute_blk_idxs;
@@ -410,33 +471,50 @@ void ActMap<T>::updateKernelLayerIncremental()
   {
     Vec3dVec blk_cs;
     V3dVecVec blk_points;
+    Vec3dVec point_w_in;
+    
     getCentersOfOccupiedVoxels(&blk_cs, &blk_points);
-    ker_integrator_->recomputeKernelLayer(
-        blk_cs, blk_points, kblk_idxs_to_recompute_, &recompute_blk_idxs);
+    // LOG(ERROR) << "blk_cs size" << blk_cs.size();
+    // LOG(ERROR) << "blk_points size" << blk_points[0].size();
+
+    ker_integrator_->getView_vox_twc(blk_cs, blk_points, 
+                                     kblk_idxs_to_recompute_, &recompute_blk_idxs,
+                                     vox_twc_global, point_w_in);
+
+    getBestView_Optimal(point_w_in, vox_twc_global, best_view_global);
+    // vox_twc_global = vox_twc;
+    // best_view_global = best_view;
+
+    // LOG(ERROR) << "vox_twc 0 : " << vox_twc(0);
+    // LOG(ERROR) << "vox_twc 1 : " << vox_twc(1);
+    // LOG(ERROR) << "vox_twc 2 : " << vox_twc(2);
+
+    // ker_integrator_->recomputeKernelLayer(
+    //     blk_cs, blk_points, kblk_idxs_to_recompute_, &recompute_blk_idxs);
   }
-  LOG(WARNING) << "Recomptue kernels took " << timer.stop() * 1000 << " ms.";
+  // LOG(WARNING) << "Recomptue kernels took " << timer.stop() * 1000 << " ms.";
 
-  const size_t n_to_recompute = kblk_idxs_to_recompute_.size();
-  const size_t n_recomputed = recompute_blk_idxs.size();
+  // const size_t n_to_recompute = kblk_idxs_to_recompute_.size();
+  // const size_t n_recomputed = recompute_blk_idxs.size();
 
-  timer.start();
-  voxblox::IndexSet merged_idxs(del_block_idxs.begin(), del_block_idxs.end());
-  merged_idxs.insert(add_block_idxs.begin(), add_block_idxs.end());
-  const size_t n_modified = merged_idxs.size();
-  merged_idxs.insert(recompute_blk_idxs.begin(), recompute_blk_idxs.end());
-  const size_t n_updated = merged_idxs.size();
-  accumulated_updated_kblk_idxs_.insert(accumulated_updated_kblk_idxs_.end(),
-                                        merged_idxs.begin(),
-                                        merged_idxs.end());
-  const size_t n_accumulate_updated = accumulated_updated_kblk_idxs_.size();
-  LOG(WARNING) << "kernels assignment took " << timer.stop() * 1000 << " ms.";
+  // timer.start();
+  // voxblox::IndexSet merged_idxs(del_block_idxs.begin(), del_block_idxs.end());
+  // merged_idxs.insert(add_block_idxs.begin(), add_block_idxs.end());
+  // const size_t n_modified = merged_idxs.size();
+  // merged_idxs.insert(recompute_blk_idxs.begin(), recompute_blk_idxs.end());
+  // const size_t n_updated = merged_idxs.size();
+  // accumulated_updated_kblk_idxs_.insert(accumulated_updated_kblk_idxs_.end(),
+  //                                       merged_idxs.begin(),
+  //                                       merged_idxs.end());
+  // const size_t n_accumulate_updated = accumulated_updated_kblk_idxs_.size();
+  // LOG(WARNING) << "kernels assignment took " << timer.stop() * 1000 << " ms.";
 
-  LOG(WARNING) << "Kernel Updater: "
-          << "to recompute " << n_to_recompute << " blocks, "
-          << "recomputed " << n_recomputed << " blocks, "
-          << "modified " << n_modified << " blocks, "
-          << "total updated " << n_updated << " blocks, "
-          << "accumulated updated " << n_accumulate_updated << " blocks.";
+  // LOG(WARNING) << "Kernel Updater: "
+  //         << "to recompute " << n_to_recompute << " blocks, "
+  //         << "recomputed " << n_recomputed << " blocks, "
+  //         << "modified " << n_modified << " blocks, "
+  //         << "total updated " << n_updated << " blocks, "
+  //         << "accumulated updated " << n_accumulate_updated << " blocks.";
 
   kblk_idxs_to_update_.insert(kblk_idxs_to_recompute_.begin(),
                               kblk_idxs_to_recompute_.end());
@@ -505,11 +583,11 @@ void ActMap<T>::addCenterToKernelLayer(const rpg::Pose& Twb)
     }
     else
     {
-      LOG(INFO) << "Not using collision checker.";
+      // LOG(INFO) << "Not using collision checker.";
     }
-    LOG(INFO) << "Kernel Expand: allocated " << new_blks.size() << " new blocks, "
-            << "covered " << covered_blks.size() << " blocks, "
-            << "and masked " << n_masked << " voxels in covered blocks.";
+    // LOG(INFO) << "Kernel Expand: allocated " << new_blks.size() << " new blocks, "
+    //         << "covered " << covered_blks.size() << " blocks, "
+    //         << "and masked " << n_masked << " voxels in covered blocks.";
     kblk_idxs_to_recompute_.insert(new_blks.begin(), new_blks.end());
   }
 }
@@ -522,7 +600,9 @@ void ActMap<T>::getBestViewsAt(const size_t cam_id,
                                Vec3dVec* vox_cs,
                                Vec3dVec* best_views,
                                std::vector<double>* values,
-                               voxblox::LongIndexVector* global_idxs) const
+                               voxblox::LongIndexVector* global_idxs,
+                                Eigen::Vector3d& vox_twc, 
+                                Eigen::Vector3d& optimal_best_view) const
 {
   std::lock_guard<std::mutex> ker_lock(ker_mutex_);
   voxblox::BlockIndexList viz_blks;
@@ -547,7 +627,9 @@ void ActMap<T>::getBestViewsAt(const size_t cam_id,
                               vox_cs,
                               best_views,
                               values,
-                              global_idxs);
+                              global_idxs,
+                              vox_twc,
+                              optimal_best_view);
   }
   else
   {
@@ -655,7 +737,9 @@ void ActMap<InfoVoxel>::getBestViewsAt(
     Vec3dVec* vox_cs,
     Vec3dVec* best_views,
     std::vector<double>* values,
-    voxblox::LongIndexVector* global_idxs) const
+    voxblox::LongIndexVector* global_idxs,
+    Eigen::Vector3d& vox_twc, 
+    Eigen::Vector3d& optimal_best_view) const
 {
   LOG(WARNING) << "Best view visualization not supported for this kernel,"
                   " doing nothing.";
@@ -672,6 +756,94 @@ void ActMap<InfoVoxel>::getSpecificViewInfoAt(const size_t cam_id,
 {
   LOG(WARNING) << "Best view visualization not supported for this kernel,"
                   " doing nothing.";
+}
+
+template <typename T>
+void ActMap<T>::getBestView_Optimal(const Vec3dVec& vis_points, 
+                        Eigen::Vector3d& vox_twc, 
+                        Eigen::Vector3d& best_view)
+{
+  // 这里偷个懒：
+  // 使用kTrace表示优化得到的max_info视角方向
+  // 使用kMinEig表示运动方向
+  // 使用kDet表示最优视角方向
+  std::vector<InfoMetricType> test_types{ InfoMetricType::kMinEig,
+                                          InfoMetricType::kDet,
+                                          InfoMetricType::kTrace };
+                                            
+  std::map<InfoMetricType, OptimOrientRes> res_exact;
+  for (const InfoMetricType v : test_types)
+  {
+      const std::string nm = kInfoMetricNames[v];
+      res_exact.insert({v, OptimOrientRes(vox_twc.size(), nm + "_ceres_optimization")});
+  }
+
+  ceres::LocalParameterization* local_parameterization = new ceres::QuaternionParameterization();
+
+  // 最终优化结果：四元数
+  double w_c_view_para[4];
+  // 设置初始值
+  w_c_view_para[0] =  0.969;
+  w_c_view_para[1] = 0;
+  w_c_view_para[2] = 0.0;
+  w_c_view_para[3] = -0.247;
+
+  ceres::Problem problem;
+  problem.AddParameterBlock(w_c_view_para, 4, local_parameterization);
+  rpg::Rotation rot;
+  rot.setIdentity();
+  rpg::Pose Twc_identity(rot, vox_twc); // J和旋转无关，优化过程中是常数
+  
+  std::cout << "feature points size : " << vis_points.size() << "......\n";
+
+  for (size_t i = 0; i < vis_points.size(); i++)
+  {
+      Eigen::Vector3d pw = vis_points[i];
+      // Eigen::Vector3d pw(1,1,1);
+      rpg::Matrix36 J =
+          vi_utils::jacobians::dBearing_dIMUPoseGlobal(pw, Twc_identity.inverse());
+      rpg::Matrix66 curr_info;
+      curr_info = J.transpose() * J;
+      double info = act_map::getInfoMetric(curr_info, InfoMetricType::kTrace);
+      // std::cout << "vox_twc = " << vox_twc << std::endl << "pw = " << pw << std::endl << " pt_i = " << pt_i << " info = " << info << std::endl;
+      ceres::CostFunction* cost_function = CostFunctor::Create(info, pw, vox_twc);
+      problem.AddResidualBlock(cost_function, NULL, w_c_view_para);
+  }
+
+  ceres::Solver::Options options;
+  options.num_threads = 16;
+  ceres::Solver::Summary summary;
+  ceres::Solve(options, &problem, &summary);
+  // std::cout << summary.FullReport() << "\n";
+  Eigen::Quaterniond optim_view(w_c_view_para[0], w_c_view_para[1], w_c_view_para[2], w_c_view_para[3]);
+  // std::cout << "final result  = " << optim_view * Eigen::Vector3d(0,0,1);
+  res_exact[InfoMetricType::kTrace].optim_views_[0] = optim_view * Eigen::Vector3d(0,0,1);
+  res_exact[InfoMetricType::kTrace].optim_vals_[0] = summary.final_cost;
+
+  best_view[0] = res_exact[InfoMetricType::kTrace].optim_views_[0][0];
+  best_view[1] = res_exact[InfoMetricType::kTrace].optim_views_[0][1];
+  best_view[2] = res_exact[InfoMetricType::kTrace].optim_views_[0][2];
+
+  // LOG(ERROR) << "optim_views_ 0 : " << res_exact[InfoMetricType::kTrace].optim_views_[0][0];
+  // LOG(ERROR) << "optim_views_ 1 : " << res_exact[InfoMetricType::kTrace].optim_views_[0][1];
+  // LOG(ERROR) << "optim_views_ 2 : " << res_exact[InfoMetricType::kTrace].optim_views_[0][2];
+
+  // // save map points
+  // std::string file_name = std::string("view_point") + ".txt";
+  // std::ofstream map_file(file_name);
+  // map_file << res_exact[InfoMetricType::kTrace].optim_views_[0][0] << " " 
+  //          << res_exact[InfoMetricType::kTrace].optim_views_[0][1] << " " 
+  //          << res_exact[InfoMetricType::kTrace].optim_views_[0][2] << std::endl;
+  // map_file.close();
+
+  // act_map_msgs::ViewInformation view_info;
+
+  // view_info.max_info_view.x = res_exact[InfoMetricType::kTrace].optim_views_[0][0];
+  // view_info.max_info_view.y = res_exact[InfoMetricType::kTrace].optim_views_[0][1];
+  // view_info.max_info_view.z = res_exact[InfoMetricType::kTrace].optim_views_[0][2];
+  // view_info.max_info_view_value = res_exact[InfoMetricType::kTrace].optim_vals_[0];
+  
+  // pub_view_info_.publish(view_info);
 }
 
 }

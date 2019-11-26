@@ -24,8 +24,8 @@ void sampleRotation(const double angle_res_deg,
   std::vector<double> lat_values;
   std::vector<double> long_values;
   double step_rad = M_PI * (angle_res_deg / 180.0);
-  vi_utils::linspace(-M_PI, M_PI, step_rad, &long_values);
-  vi_utils::linspace(-M_PI_2, M_PI_2, step_rad, &lat_values);
+  vi_utils::linspace(-M_PI_2, M_PI_2, step_rad, &long_values);        // yaw
+  vi_utils::linspace(-M_PI_2, M_PI_2, step_rad, &lat_values);     // pitch
   const Eigen::Vector3d e3(0, 0, 1);
   for (size_t lat_idx = 0; lat_idx < lat_values.size(); lat_idx++)
   {

@@ -1,4 +1,6 @@
 <launch>
-    <include file="$(find act_map_ros)/launch/nrsl_d435i.launch" />
+    <include file="$(find act_map_ros)/launch/trace_map_full_euroc.launch" />
     <include file="$(find view_controller)/launch/view_controller.launch" />
+    <node name="active_localization_node" pkg="active_localization" type="active_localization_node" output="screen">
+    </node>
 </launch>

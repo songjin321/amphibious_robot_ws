@@ -1,5 +1,5 @@
 # occupancy and integrator
-occ_vox_size: 0.2
+occ_vox_size: 0.5
 occ_vox_per_side: 16
 occ_prob_hit: 0.8
 occ_prob_miss: 0.3

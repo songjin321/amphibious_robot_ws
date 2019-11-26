@@ -2,7 +2,7 @@
 <package format="2">
   <name>active_localization</name>
   <version>0.0.0</version>
-  <description>The active_localization package</description>
+  <description>The active_slam package</description>
 
   <maintainer email="songjinxs@163.com">songjin</maintainer>
 

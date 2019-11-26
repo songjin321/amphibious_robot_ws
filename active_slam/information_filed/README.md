@@ -33,20 +33,3 @@ rosrun act_map exp_best_orient_nrsl.py four_walls --v=1
 
 3. 画图
 rosrun act_map exp_plot.py 
-
-## 使用
-实验室网盘上的包[active_view.bag](http://file.nrs-lab.com/s/SPkpkPfx4fDfG59)
-基于采样的
-```
-roslaunch act_map_ros nrsl_d435i.launch
-roslaunch vins_estimator nrsl_d435i.launch 
-roslaunch navigation rviz.launch
-rosbag play active_view.bag
-```
-基于优化的
-```
-roslaunch act_map_ros nrsl_optimization.launch
-roslaunch vins_estimator nrsl_d435i.launch 
-roslaunch navigation rviz.launch
-rosbag play active_view.bag
-```

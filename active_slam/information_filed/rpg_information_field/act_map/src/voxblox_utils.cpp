@@ -40,19 +40,28 @@ void getCentersOfOccupiedVoxels(const OccupancyLayer& occ_layer,
 
   voxblox::BlockIndexList occ_blks;
   occ_layer.getAllAllocatedBlocks(&occ_blks);
+  // LOG(ERROR) << "occ_blks size : " << occ_blks.size();
+
   for (const voxblox::BlockIndex& bidx : occ_blks)
   {
     const OccupancyBlock& blk_i = occ_layer.getBlockByIndex(bidx);
     Vec3dVec points_i;
+
     for (size_t vidx = 0; vidx < blk_i.num_voxels(); vidx++)
     {
       const OccupancyVoxel& vox_i = blk_i.getVoxelByLinearIndex(vidx);
       if (isOccupancyVoxelOccupied(vox_i, occ_thresh))
       {
         Eigen::Vector3d vox_c = blk_i.computeCoordinatesFromLinearIndex(vidx);
+        // LOG(ERROR) << "vox_c 0 : " << vox_c(0);
+        // LOG(ERROR) << "vox_c 1 : " << vox_c(1);
+        // LOG(ERROR) << "vox_c 2 : " << vox_c(2);
+
         points_i.emplace_back(vox_c);
       }
     }
+    // LOG(ERROR) << "points_i size : " << points_i.size();
+
     if (!points_i.empty())
     {
       Eigen::Vector3d blk_c;
@@ -133,7 +142,9 @@ void getBestViewsSample(const act_map::TraceLayer& tl,
                         act_map::Vec3dVec* vox_cs,
                         act_map::Vec3dVec* best_views,
                         std::vector<double>* values,
-                        voxblox::LongIndexVector* global_idxs)
+                        voxblox::LongIndexVector* global_idxs,
+                        Eigen::Vector3d& vox_twc, 
+                        Eigen::Vector3d& optimal_best_view)
 {
   CHECK_NOTNULL(vox_cs);
   vox_cs->clear();
@@ -143,11 +154,11 @@ void getBestViewsSample(const act_map::TraceLayer& tl,
   values->clear();
   CHECK_NOTNULL(global_idxs);
   global_idxs->clear();
-  static rpg::RotationVec rot_samples;
-  if (rot_samples.empty())
-  {
-    utils::sampleRotation(10.0, &rot_samples);
-  }
+  // static rpg::RotationVec rot_samples;
+  // if (rot_samples.empty())
+  // {
+  //   utils::sampleRotation(10.0, &rot_samples);
+  // }
 
   for (const voxblox::BlockIndex blk_idx : blk_idxs)
   {
@@ -168,12 +179,15 @@ void getBestViewsSample(const act_map::TraceLayer& tl,
       const TraceVoxel& vox = blk.getVoxelByVoxelIndex(vox_idx);
       Eigen::Vector3d pos = blk.computeCoordinatesFromVoxelIndex(vox_idx);
       Eigen::Vector3d bview;
-      double val;
-      optim_orient::getOptimViewFromTraceKernels(
-          rot_samples, k1, k2, k3, vox.K1, vox.K2, vox.K3, &bview, &val);
+      double val = 100.0;
+      // optim_orient::getOptimViewFromTraceKernels(
+      //     rot_samples, k1, k2, k3, vox.K1, vox.K2, vox.K3, &bview, &val);
+      // bview[0] = 1;
+      // bview[1] = 0;
+      // bview[2] = 0;
 
-      vox_cs->emplace_back(pos);
-      best_views->emplace_back(bview);
+      vox_cs->emplace_back(vox_twc);
+      best_views->emplace_back(optimal_best_view);
       global_idxs->emplace_back(
           voxblox::getGlobalVoxelIndexFromBlockAndVoxelIndex(
               blk_idx, vox_idx, static_cast<int>(blk.voxels_per_side())));

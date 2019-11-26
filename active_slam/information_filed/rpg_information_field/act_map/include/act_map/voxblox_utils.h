@@ -356,7 +356,9 @@ void getBestViewsSample(const act_map::TraceLayer& tl,
                         act_map::Vec3dVec* vox_cs,
                         act_map::Vec3dVec* best_views,
                         std::vector<double>* values,
-                        voxblox::LongIndexVector* global_idxs);
+                        voxblox::LongIndexVector* global_idxs,
+                        Eigen::Vector3d& vox_twc, 
+                        Eigen::Vector3d& optimal_best_view);
 
 void getSpecificViewInfo(const act_map::TraceLayer& tl,
                          const voxblox::BlockIndexList &blk_idxs,

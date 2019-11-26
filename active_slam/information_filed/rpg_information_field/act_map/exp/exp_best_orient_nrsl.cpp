@@ -95,7 +95,7 @@ RPG_COMMON_MAIN
               << "- yrange: " << FLAGS_yrange << std::endl
               << "- zrange: " << FLAGS_zrange << std::endl;
 
-
+    // 3D points save in map
     vi_utils::Map map;
     map.load(FLAGS_abs_map, std::string());
     std::cerr << "Loaded " << map.n_points_ << " map points." << std::endl;

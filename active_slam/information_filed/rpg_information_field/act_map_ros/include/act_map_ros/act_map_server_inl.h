@@ -17,6 +17,8 @@
 #include "act_map_ros/conversion_ros.h"
 #include "act_map_ros/params_reader.h"
 #include "act_map_msgs/ViewInformation.h"
+
+#include "math.h"
 namespace act_map_ros
 {
 template <typename T>
@@ -200,11 +202,11 @@ void ActMapServer<T>::feature3dCallback(const PCLPointCloud::ConstPtr& pc,
 {
   ros::Time pc_time;
   pcl_conversions::fromPCL(pc->header.stamp, pc_time);
-  LOG(INFO) <<"feature3dCallback has been called";
+  // LOG(INFO) <<"feature3dCallback has been called";
 
   if (pc->empty())
   {
-    visualizeAll(pc_time);
+    // visualizeAll(pc_time);
     return;
   }
 
@@ -230,15 +232,17 @@ void ActMapServer<T>::feature3dCallback(const PCLPointCloud::ConstPtr& pc,
   Eigen::Matrix3Xd pc_mat_cam;
   pc_mat_cam = T_w_c.inverse().transformVectorized(pc_mat_world);
   act_map_->integratePointCloudOccupancy(T_w_c, pc_mat_cam);
-  LOG(INFO) << "Updated occupancy layer. It took " << timer.stop() * 1000 << " m"
-                                                                           "s";
+  // LOG(INFO) << "Updated occupancy layer. It took " << timer.stop() * 1000 << " m"
+                                                                          //  "s";
+  // Eigen::Vector3d optimal_best_view;
+  // Eigen::Vector3d vox_twc; 
   timer.start();
   updateKernelLayer();
-  LOG(INFO) << "Updated kernel layer. It took " << timer.stop() * 1000 << " ms";
+  // LOG(INFO) << "Updated kernel layer. It took " << timer.stop() * 1000 << " ms";
 
   timer.start();
   visualizeAll(pc_time);
-  LOG(INFO) << "Visualization took " << timer.stop() * 1000 << " ms";
+  // LOG(INFO) << "Visualization took " << timer.stop() * 1000 << " ms";
 }
 
 template <typename T>
@@ -258,14 +262,14 @@ void ActMapServer<T>::updateKernelLayer()
     rpg::Timer timer;
     timer.start();
     act_map_->recomputeKernelLayer();
-    LOG(WARNING) << "Recomputed kernel layer. It took " << timer.stop() * 1000
-            << " ms";
+    // LOG(WARNING) << "Recomputed kernel layer. It took " << timer.stop() * 1000
+            // << " ms";
     act_map::utils::clearLayerUpdate(act_map_->occLayerPtr().get());
     pub_kvox_bestview_ = true;
   }
   else if (options_.ker_update_mode_ == KernelUpdateMode::kIncremental)
   {
-    LOG(WARNING) << "update Kernel Layer Incremental!";
+    // LOG(WARNING) << "update Kernel Layer Incremental!";
     act_map_->updateKernelLayerIncremental();
     if (inc_step_cnt_ % options_.viz_bview_incremental_every_n_ == 0)
     {
@@ -284,7 +288,7 @@ void ActMapServer<T>::keyCmdCallback(const std_msgs::StringConstPtr& key)
     if (data == "d")
     {
       act_map_->kerLayerPtr()->removeAllBlocks();
-      visualizeKerBestViews();
+      // visualizeKerBestViews();
       VLOG(1) << "Clear all blocks in the kernel layer.";
     }
     else if (data == "l")
@@ -303,7 +307,7 @@ void ActMapServer<T>::keyCmdCallback(const std_msgs::StringConstPtr& key)
               << act_map_->kerLayerPtr()->getNumberOfAllocatedBlocks()
               << " blocks "
               << "took " << timer.stop() * 1000 << " ms.";
-      visualizeKerBestViews();
+      // visualizeKerBestViews();
     }
   }
 
@@ -321,7 +325,7 @@ template <typename T>
 void ActMapServer<T>::bodyPoseCallback(
     const geometry_msgs::PoseStampedConstPtr& pose)
 {
-  LOG(INFO) <<"bodyPoseCallback has been called";
+  // LOG(INFO) <<"bodyPoseCallback has been called";
   static rpg::Pose prev_added_Twb;
   rpg::Pose Twb;
   rosPoseToKindr(pose->pose, &Twb);
@@ -426,6 +430,13 @@ void ActMapServer<T>::visualizeKernelBlocks() const
 template <typename T>
 void ActMapServer<T>::visualizeKerBestViews() const
 {
+  Eigen::Vector3d optimal_best_view;
+  Eigen::Vector3d vox_twc = act_map_->vox_twc_global;
+  optimal_best_view = act_map_->best_view_global;
+  if(fabs(optimal_best_view[0]) <= 0.0001 && fabs(optimal_best_view[1]) <= 0.0001 && fabs(optimal_best_view[2]) <= 0.0001){
+    LOG(WARNING) << "return" << fabs(optimal_best_view[0]);
+    return;
+  }
   if (act_map::getVoxelType<T>() != act_map::voxel_types::kTraceKernel)
   {
     return;
@@ -444,9 +455,15 @@ void ActMapServer<T>::visualizeKerBestViews() const
                            &vox_cs,
                            &bviews,
                            &values,
-                           &global_idxs);
+                           &global_idxs,
+                           vox_twc,
+                           optimal_best_view);
   LOG(INFO) << "Computing " << vox_cs.size() << " views for visulization took "
           << timer.stop() * 1000 << " ms.";
+
+  LOG(ERROR) << "bviews 0 : " << optimal_best_view[0];
+  LOG(ERROR) << "bviews 1 : " << optimal_best_view[1];
+  LOG(ERROR) << "bviews 2 : " << optimal_best_view[2];
 
   // 计算当前视角的信息量
   Eigen::Vector3d curr_position;
@@ -464,6 +481,10 @@ void ActMapServer<T>::visualizeKerBestViews() const
   bviews.push_back(curr_view);
   values.push_back(curr_value);
   global_idxs.emplace_back();
+
+  LOG(WARNING) << "curr_view 0 : " << bviews[1][0];
+  LOG(WARNING) << "curr_view 1 : " << bviews[1][1];
+  LOG(WARNING) << "curr_view 2 : " << bviews[1][2];
 
   visualization_msgs::MarkerArray ma;
   std::vector<size_t> ids;
@@ -500,6 +521,7 @@ void ActMapServer<T>::visualizeKerBestViews() const
       colors[i].g = 0.5f;
     }
   }
+  
   directionsToArrowsArray(
       vox_cs, bviews, ids, colors, options_.viz_bview_size_, &ma);
   kvox_bestviews_pub_.publish(ma);

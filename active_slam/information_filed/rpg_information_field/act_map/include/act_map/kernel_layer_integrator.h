@@ -110,6 +110,15 @@ public:
                                    voxblox::Block<KVType>* blk,
                                    const size_t lin_idx);
 
+  // 基于优化的最佳视角计算
+  template <typename ContainerType>
+  void getView_vox_twc(const Vec3dVec& blk_cs, 
+                       const V3dVecVec& blk_points, 
+                       const ContainerType& cand_blks, 
+                       voxblox::BlockIndexList* updated_blks,
+                       Eigen::Vector3d& vox_twc,
+                       Vec3dVec& point_w_in);
+
   inline double getBlockCenterCheckThresh() const
   {
     return blk_center_check_thresh_;
@@ -337,6 +346,8 @@ void KernelLayerIntegrator<KVType>::updateKernelLayerFromPoints(
 
   for (const voxblox::BlockIndex& blk_idx : cand_blks)
   {
+    // LOG(ERROR) << "dist_thresh : " << dist_thresh;
+
     typename voxblox::Block<KVType>::Ptr blk_ptr =
         ker_layer_ptr_->getBlockPtrByIndex(blk_idx);
     if (!blk_ptr->activated())
@@ -344,6 +355,7 @@ void KernelLayerIntegrator<KVType>::updateKernelLayerFromPoints(
       continue;
     }
     bool blk_updated = false;
+    // LOG(ERROR) << "blk_ptr->num_voxels : " << blk_ptr->num_voxels();    // 1
     for (size_t vox_i = 0; vox_i < blk_ptr->num_voxels(); vox_i++)
     {
       Eigen::Vector3d voxc = blk_ptr->computeCoordinatesFromLinearIndex(vox_i);
@@ -419,5 +431,77 @@ bool KernelLayerIntegrator<KVType>::updateKernelVoxelFromPoints(
     }
   }
   return vox_updated;
+}
+
+
+template <typename KVType>
+template <typename ContainerType>
+void KernelLayerIntegrator<KVType>::getView_vox_twc(const Vec3dVec& blk_cs, 
+                                                    const V3dVecVec& blk_points, 
+                                                    const ContainerType& cand_blks, 
+                                                    voxblox::BlockIndexList* updated_blks,
+                                                    Eigen::Vector3d& vox_twc,
+                                                    Vec3dVec& point_w_in){
+  double dist_thresh = 9.7712;
+  
+  if (updated_blks)
+  {
+    updated_blks->clear();
+  }
+
+  CHECK_EQ(blk_cs.size(), blk_points.size());
+
+  for (const voxblox::BlockIndex& blk_idx : cand_blks)
+  {
+    // LOG(ERROR) << "cand_blks size" << cand_blks.size();
+
+    typename voxblox::Block<KVType>::Ptr blk_ptr =
+        ker_layer_ptr_->getBlockPtrByIndex(blk_idx);
+    if (!blk_ptr->activated())
+    {
+      continue;
+    }
+    bool blk_updated = false;
+    for (size_t vox_i = 0; vox_i < blk_ptr->num_voxels(); vox_i++)
+    {
+      Eigen::Vector3d voxc = blk_ptr->computeCoordinatesFromLinearIndex(vox_i);
+      int recompute_occ_point_size = 0;
+      for (size_t occ_blk_i = 0; occ_blk_i < blk_cs.size(); occ_blk_i++)
+      {
+        if ((blk_cs[occ_blk_i] - voxc).norm() > dist_thresh)
+        {
+          continue;
+        }
+        vox_twc = blk_ptr->computeCoordinatesFromLinearIndex(vox_i);
+        bool vox_updated = true;
+
+        Vec3dVec points_w = blk_points[occ_blk_i];
+        for(size_t point_i = 0; point_i < points_w.size(); point_i++){
+          // LOG(ERROR) << "vox_twc 0 : " << points_w[point_i](0);
+          // LOG(ERROR) << "vox_twc 1 : " << points_w[point_i](1);
+          // LOG(ERROR) << "vox_twc 2 : " << points_w[point_i](2);
+          point_w_in.emplace_back(points_w[point_i]);
+        }
+        // bool vox_updated = updateKernelVoxelFromPoints(
+        //     blk_points[occ_blk_i], action, blk_ptr.get(), vox_i);
+        recompute_occ_point_size++;
+        if (vox_updated)
+        {
+          blk_updated = true;
+          blk_ptr->setVoxUpdated(true, vox_i);
+          blk_ptr->setVoxDataValid(true, vox_i);
+        }
+      }
+      // LOG(ERROR) << "recompute_occ_point_size = " << recompute_occ_point_size;
+    }
+    if (blk_updated)
+    {
+      blk_ptr->set_updated(true);
+      if (updated_blks)
+      {
+        updated_blks->emplace_back(blk_idx);
+      }
+    }
+  }
 }
 }

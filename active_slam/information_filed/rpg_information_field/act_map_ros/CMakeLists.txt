@@ -6,6 +6,8 @@ project(act_map_ros)
 cmake_minimum_required(VERSION 2.8.3)
 
 find_package(catkin_simple REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(Ceres REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
 add_definitions(-std=c++11 -Wall -Wextra)
@@ -36,13 +38,13 @@ cs_add_library(${PROJECT_NAME}
 
 # nodes
 cs_add_executable(trace_map_server_node src/trace_map_server_node.cpp)
-target_link_libraries(trace_map_server_node ${PROJECT_NAME})
+target_link_libraries(trace_map_server_node ${PROJECT_NAME} ${OpenCV_LIBRARIES} ${CERES_LIBRARIES})
 
 cs_add_executable(info_map_server_node src/info_map_server_node.cpp)
-target_link_libraries(info_map_server_node ${PROJECT_NAME})
+target_link_libraries(info_map_server_node ${PROJECT_NAME} ${OpenCV_LIBRARIES} ${CERES_LIBRARIES})
 
 cs_add_executable(simulator_server_node src/simulator_server_node.cpp)
-target_link_libraries(simulator_server_node ${PROJECT_NAME})
+target_link_libraries(simulator_server_node ${PROJECT_NAME} ${OpenCV_LIBRARIES} ${CERES_LIBRARIES})
 
 cs_install()
 cs_export()
