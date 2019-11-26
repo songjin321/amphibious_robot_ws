@@ -75,7 +75,7 @@ def plotAllinSingel(ax, vos_pos, index, map_points, view_points, plt_rng, res, n
     y = 1.35*np.sin(theta)          
     ax.plot(x, y, color='black',label="trajectory")       
 
-    ax.scatter(vox_pos[index, 0], vox_pos[index, 1], vox_pos[index, 2], s=80, marker='^')                 
+    ax.scatter(vox_pos[index, 0], vox_pos[index, 1], vox_pos[index, 2], s=80, marker='o')                 
     ax.set_title(nm)
     ax.view_init(azim=0, elev=90)
 
@@ -94,7 +94,7 @@ def plotAll(ax, vos_pos, map_points, plt_rng, res, nm):
     ax.quiver(vox_pos[:, 0], vox_pos[:, 1], vox_pos[:, 2],
               res['det']['views'][:, 0], res['det']['views'][:, 1], res['det']['views'][:, 2],
               length=0.5, color='green',pivot='tail',
-              arrow_length_ratio=0.7)
+              arrow_length_ratio=0.71)
     ax.quiver(vox_pos[:, 0], vox_pos[:, 1], vox_pos[:, 2],
               res['mineig']['views'][:, 0], res['mineig']['views'][:, 1], res['mineig']['views'][:, 2],
               length=0.5, color='blue',pivot='tail',
@@ -104,7 +104,7 @@ def plotAll(ax, vos_pos, map_points, plt_rng, res, nm):
     x = 1.35*np.cos(theta)
     y = 1.35*np.sin(theta)          
     ax.plot(x, y, color='black',label="trajectory")
-    ax.scatter(vox_pos[:, 0], vox_pos[:, 1], vox_pos[:, 2], s=80, marker='^')  
+    ax.scatter(vox_pos[:, 0], vox_pos[:, 1], vox_pos[:, 2], s=80, marker='o')  
     ax.set_title(nm)
     ax.view_init(azim=0, elev=90)
 
@@ -143,7 +143,8 @@ print(args)
 rospack = rospkg.RosPack()
 act_map = os.path.join(rospack.get_path("act_map"))
 top_trace_dir = os.path.join(act_map, "trace")
-abs_trace_dir = os.path.join(top_trace_dir,"four_walls_bestView")
+#abs_trace_dir = os.path.join(top_trace_dir,"four_walls_bestView")
+abs_trace_dir = os.path.join(top_trace_dir,"four_walls_maxInfo")
 
 print(Fore.RED + ">>>>> Start analysis.")
 
@@ -237,7 +238,7 @@ fig = plt.figure(figsize=(27, 14))
 
 ax = fig.add_subplot(241, projection='3d')
 plotAllinSingel(ax, vox_pos, 0, map_points, points0, args.xrange, gt_res,
-           r'Position 1')
+           r'$T_1$')
 ax.set_xticklabels([])
 ax.set_yticklabels([])
 ax.set_zticklabels([])
@@ -245,7 +246,7 @@ axes.append(ax)
 
 ax = fig.add_subplot(242, projection='3d')
 plotAllinSingel(ax, vox_pos, 1, map_points, points1, args.xrange, gt_res,
-           r'Position 2')
+           r'$T_2$')
 ax.set_xticklabels([])
 ax.set_yticklabels([])
 ax.set_zticklabels([])
@@ -253,7 +254,7 @@ axes.append(ax)
 
 ax = fig.add_subplot(243, projection='3d')
 plotAllinSingel(ax, vox_pos, 2, map_points, points2, args.xrange, gt_res,
-           r'Position 3')
+           r'$T_3$')
 ax.set_xticklabels([])
 ax.set_yticklabels([])
 ax.set_zticklabels([])
@@ -261,7 +262,7 @@ axes.append(ax)
 
 ax = fig.add_subplot(244, projection='3d')
 plotAllinSingel(ax, vox_pos, 3, map_points, points3, args.xrange, gt_res,
-           r'Position 4')
+           r'$T_4$')
 ax.set_xticklabels([])
 ax.set_yticklabels([])
 ax.set_zticklabels([])
@@ -269,7 +270,7 @@ axes.append(ax)
 
 ax = fig.add_subplot(245, projection='3d')
 plotAllinSingel(ax, vox_pos, 4, map_points, points4, args.xrange, gt_res,
-           r'Position 5')
+           r'$T_5$')
 ax.set_xticklabels([])
 ax.set_yticklabels([])
 ax.set_zticklabels([])
@@ -277,7 +278,7 @@ axes.append(ax)
 
 ax = fig.add_subplot(246, projection='3d')
 plotAllinSingel(ax, vox_pos, 5, map_points, points5, args.xrange, gt_res,
-           r'Position 6')
+           r'$T_6$')
 ax.set_xticklabels([])
 ax.set_yticklabels([])
 ax.set_zticklabels([])
@@ -285,7 +286,7 @@ axes.append(ax)
 
 ax = fig.add_subplot(247, projection='3d')
 plotAllinSingel(ax, vox_pos, 6, map_points, points6, args.xrange, gt_res,
-           r'Position 7')
+           r'$T_7$')
 ax.set_xticklabels([])
 ax.set_yticklabels([])
 ax.set_zticklabels([])
@@ -293,7 +294,7 @@ axes.append(ax)
 
 ax = fig.add_subplot(248, projection='3d')
 plotAll(ax, vox_pos, map_points, args.xrange, gt_res,
-           r'All Position')
+           r'')
 ax.set_xticklabels([])
 ax.set_yticklabels([])
 ax.set_zticklabels([])

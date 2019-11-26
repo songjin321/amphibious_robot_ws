@@ -101,4 +101,4 @@ scale_thresh: 1.0
 detector_type: 0
 
 ## 是否画图显示滑动窗口
-SHOW_TRACK_IMAGE: 0
+SHOW_TRACK_IMAGE: 1

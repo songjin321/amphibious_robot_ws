@@ -45,7 +45,7 @@ public:
     static const int halfpatch_size_ = 4;
     static const int patch_size_ = 8;
     int check_threshold = 5; // 判断该点是否需要匹配的阈值
-    int align_max_iter= 10;
+    int align_max_iter= 20;
     svo::Matcher matcher;
     uint8_t patch_[patch_size_*patch_size_] __attribute__ ((aligned (16)));
     uint8_t patch_with_border_[(patch_size_+2)*(patch_size_+2)] __attribute__ ((aligned (16)));

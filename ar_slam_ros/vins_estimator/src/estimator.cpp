@@ -150,8 +150,6 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
             if (header_image.header.stamp.toSec() == Headers[j].stamp.toSec())
             {
                 cv::Mat image_color;
-                // if (header_image.second.ty)
-                // cv::cvtColor(header_image.second, image_color, CV_GRAY2BGR);
                 show_imgs.push_back(header_image.image);
                 j++;
                 if (j > WINDOW_SIZE)
@@ -297,25 +295,20 @@ void Estimator::processImage(feature_tracker::FeaturePtr frame, const std_msgs::
                     point_ref.x = image_patch_cors.ref_px.x + image_width * width_factor[image_patch_cors.ref_index];
                     point_ref.y = image_patch_cors.ref_px.y + image_height * height_factor[image_patch_cors.ref_index];     
                     
-                    // 光度匹配成功,画出匹配成功的绿色特征点.并连线
-                    // 没成功则画红色投影点的位置
-                    
+                    // 画红色投影点的位置,光度匹配成功,画出匹配成功的绿色特征点.并连线
+                    cv::circle(show_image, point_cur, 2, cv::Scalar(0, 0, 255), 1);
+                    char name[10];
+                    sprintf(name, "%d", image_patch_cors.id);
+                    cv::putText(show_image, name, point_cur, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0));
                     if (image_patch_cors.match_success)
                     {
                         cv::circle(show_image, point_cur_final, 2, cv::Scalar(0, 255, 0), 2);
-                        char name[10];
-                        sprintf(name, "%d", image_patch_cors.id);
-                        cv::putText(show_image, name, point_cur_final, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0));
-                         
                         // 画线连接匹配点
-                        cv::line(show_image, point_cur_final, point_ref, cv::Scalar(255, 0, 0), 2);
-                    }
-                    else
+                        cv::line(show_image, point_cur, point_ref, cv::Scalar(255, 0, 0), 1);
+                        cv::line(show_image, point_cur_final, point_cur, cv::Scalar(255, 0, 0), 1);
+                    }else
                     {
-                        cv::circle(show_image, point_cur, 2, cv::Scalar(0, 0, 255), 2);
-                        char name[10];
-                        sprintf(name, "%d", image_patch_cors.id);
-                        cv::putText(show_image, name, point_cur, cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0));
+                        cv::line(show_image, point_cur, point_ref, cv::Scalar(0, 255, 0), 1);
                     }
                 }
                 cv::resize(show_image, show_image, cv::Size(), 0.65, 0.65);

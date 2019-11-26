@@ -66,7 +66,7 @@ bool PatchMatcher::projectMapPointToCurFrameAndCheck(Eigen::Vector3d &point)
 bool PatchMatcher::directMatch(Eigen::Vector3d& point, Eigen::Vector2d& px_cur_final, ImagePatchCorresponds& image_patch_cors)
 {
   // svo
-  /*
+  
   // 计算ref和cur的变化
   Sophus::SE3 T_cur_ref(frame_cur_->T_f_w_ * frame_ref_->T_f_w_.inverse());
 
@@ -89,12 +89,13 @@ bool PatchMatcher::directMatch(Eigen::Vector3d& point, Eigen::Vector2d& px_cur_f
       frame_cur_->img_pyr_[search_level_], patch_with_border_, patch_,
       align_max_iter, px_scaled);
   px_cur_final = px_scaled * (1 << search_level_);
-  */
+  
 
   // opencv
+  /*
   std::vector<uchar> status;
   std::vector<float> err;
-  cv::TermCriteria criteria = cv::TermCriteria((cv::TermCriteria::COUNT) + (cv::TermCriteria::EPS), 10, 0.03);
+  cv::TermCriteria criteria = cv::TermCriteria((cv::TermCriteria::COUNT) + (cv::TermCriteria::EPS), 5, 0.01);
   std::vector<cv::Point2f> p0,p1;
   p0.emplace_back(px_ref_.x(), px_ref_.y());
   p1.emplace_back(px_cur_.x(), px_cur_.y());
@@ -103,7 +104,7 @@ bool PatchMatcher::directMatch(Eigen::Vector3d& point, Eigen::Vector2d& px_cur_f
     frame_cur_->img_pyr_, 
     p0, 
     p1, 
-    status, err, cv::Size(21, 21), 3, criteria, cv::OPTFLOW_USE_INITIAL_FLOW);
+    status, err, cv::Size(3, 3), 1, criteria, cv::OPTFLOW_USE_INITIAL_FLOW);
   bool success = false;
   if (status[0] == 1)
   {
@@ -111,6 +112,7 @@ bool PatchMatcher::directMatch(Eigen::Vector3d& point, Eigen::Vector2d& px_cur_f
     px_cur_final(1) = p1[0].y;
     success = true;
   }
+  */
   // 对image_patch_cors进行赋值
   image_patch_cors.cur_px_init = cv::Point2f(px_cur_.x(), px_cur_.y());
   image_patch_cors.ref_px = cv::Point2f(px_ref_.x(), px_ref_.y());

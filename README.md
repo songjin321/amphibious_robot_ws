@@ -78,13 +78,13 @@ catkin build feature_tracker -DENABLE_GPU=ON
 2. rosbag play amphi_vio.bag 或者使用相机 roslaunch realsense2_camera rs_maplab.launch
 3. roslaunch navigation rviz.launch
 
-### 2. 测试ActiveView
+### 2. 测试ActiveLocalization
 
-从实验室网盘上下载包[active_view.bag]()
+从实验室网盘上下载包[active_localization.bag]()
 
 1. roslaunch vins_estimator nrsl_d435i.launch
-2. roslaunch active_slam nrsl_d435i.launch
-3. rosbag play active_view.bag
+2. roslaunch active_localization active_localization.launch
+3. rosbag play active_localization.bag
 4. roslaunch navigation rviz.launch
 
 ### 3. 测试ActiveExposure 

@@ -157,13 +157,17 @@ getMeasurements()
         ROS_ERROR("cv_bridge exception: %s", e.what());
         return;
     }
-    cv::Mat image;
+    cv::Mat image_color;
+    cv::Mat image_gray;
     if (ptr->encoding == "rgb8")
-        cv::cvtColor(ptr->image, image, cv::COLOR_RGB2BGR);
+        cv::cvtColor(ptr->image, image_color, cv::COLOR_RGB2BGR);
     else if (ptr->encoding == "bgr8")
-        ;//cv::cvtColor(ptr->image, image, cv::COLOR_BGR2GRAY);
+        image_color = ptr->image;
     else if (ptr->encoding == "mono8")
-        image = ptr->image;
+    {
+        cv::cvtColor(ptr->image, image_color, cv::COLOR_GRAY2BGR);
+        image_gray = ptr->image;     
+    }
     else 
         LOG(WARNING) << "unclear image encode type";
     m_estimator.lock();
@@ -171,12 +175,15 @@ getMeasurements()
         estimator.image_buf.pop_front();
     ImageBuf temp;
     temp.header = img_msg->header;
-    temp.image = image;
+    temp.image = image_color;
     if (detector_type == 0)
     {
-        cv::cvtColor(image, temp.image_gray, cv::COLOR_BGR2GRAY);
+        if (image_gray.empty())
+            cv::cvtColor(image_color, image_gray, cv::COLOR_BGR2GRAY);
+        
+        temp.image_gray = image_gray;
         TicToc tic;
-        cv::buildOpticalFlowPyramid(temp.image_gray, temp.image_pyr, cv::Size(21, 21), temp.maxLvl, true);
+        cv::buildOpticalFlowPyramid(temp.image_gray, temp.image_pyr, cv::Size(3, 3), temp.maxLvl, true);
         ROS_DEBUG("buildOpticalFlowPyramid image costs: %fms", tic.toc());
     }
     estimator.image_buf.push_back(temp);

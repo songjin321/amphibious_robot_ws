@@ -1,6 +1,4 @@
 <launch>
     <include file="$(find act_map_ros)/launch/nrsl_d435i.launch" />
     <include file="$(find view_controller)/launch/view_controller.launch" />
-    <node name="active_slam_node" pkg="active_slam" type="active_slam_node" output="screen">
-    </node>
 </launch>
