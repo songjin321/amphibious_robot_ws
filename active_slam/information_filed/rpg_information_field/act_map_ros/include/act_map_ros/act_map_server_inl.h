@@ -521,7 +521,15 @@ void ActMapServer<T>::visualizeKerBestViews() const
       colors[i].g = 0.5f;
     }
   }
-  
+
+  colors[0].r = 1.0f;
+  colors[0].g = 0.0f;
+  colors[0].b = 0.0f;
+
+  colors[1].r = 0.0f;
+  colors[1].g = 0.0f;
+  colors[1].b = 1.0f;
+
   directionsToArrowsArray(
       vox_cs, bviews, ids, colors, options_.viz_bview_size_, &ma);
   kvox_bestviews_pub_.publish(ma);
