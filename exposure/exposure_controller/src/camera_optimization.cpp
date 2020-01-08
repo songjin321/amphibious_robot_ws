@@ -78,10 +78,12 @@ public:
             exposure_time = exposure_time_;
             init_set = true;
             return true;
-        }else if(exposure_time_ != exposure_time) // wait exposure adjust
+        }else if(exposure_time_ != exposure_time && set_count < 5) // wait exposure adjust
         {
+            set_count++;
             return false;
         }else{
+            set_count = 0;
             return true;
         }      
     }
@@ -236,6 +238,7 @@ private:
     std::vector<row_col_gradient> indexs; //用于排序
     std::vector<double> steps;
     bool init_set = false;
+    int set_count = 0;
 };
 
 ros::Publisher exposure_pub;
@@ -254,8 +257,8 @@ void imageCallback(const sensor_msgs::ImageConstPtr &msg)
         }
         cv::Mat grayImg;
         cv::cvtColor(colorImg, grayImg, cv::COLOR_BGR2GRAY);
-        cv::imshow("gray Image", grayImg);
-        cv::waitKey(1);
+        //cv::imshow("gray Image", grayImg);
+        //cv::waitKey(1);
 
         int exposure_time, exposure_gain;
         std::istringstream iss(msg->header.frame_id);
@@ -263,7 +266,10 @@ void imageCallback(const sensor_msgs::ImageConstPtr &msg)
         exposure_controller.set_exposure_gain(exposure_gain);
         if (exposure_controller.set_exposure_time(exposure_time))
         {
+            double T1 = static_cast<double>(cv::getTickCount());
             exposure_controller.exposure_adjust(grayImg);
+            double T2 = static_cast<double>(cv::getTickCount());
+            printf("Thread run times = %3.3fms\n,", (T2 - T1) * 1000 / cv::getTickFrequency());
             exposure_time = exposure_controller.get_exposure_time();
             ROS_INFO("exposure time = %d, exposure gain = %d", exposure_time, exposure_gain);
             // publish it to camera

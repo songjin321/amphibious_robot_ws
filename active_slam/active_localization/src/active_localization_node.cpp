@@ -6,13 +6,17 @@
 #include "act_map_msgs/ViewInformation.h"
 #include "view_controller/ControlView.h"
 #include <glog/logging.h>
+#include <math.h>
+#include <cmath>
 #include <iostream>
 using namespace std;
 ros::Publisher best_view_show;
 ros::ServiceClient view_controller_client;
 Eigen::Vector3d view_robot_camera_curr(1,0,0); // 当前相机在机器人坐标系下的视角
-Eigen::Matrix3d R_robot_camera_curr_Matrix;
+
 Eigen::AngleAxisd R_robot_camera_curr;
+Eigen::AngleAxisd R_world_robot_curr;
+
 
 // Eigen::Vector3d view_robot_camera_curr; // 当前相机在机器人坐标系下的视角
 
@@ -37,7 +41,7 @@ void view_info_callback(act_map_msgs::ViewInformation view_info)
     );
 
     // 从世界坐标系转换到机器人坐标系
-    const Eigen::Vector3d e3(0,1,0);
+    const Eigen::Vector3d e3(1,0,0);
 
     Eigen::AngleAxis<double> R_world_camera_max_info(
         std::acos(view_world_camera_max_info.dot(e3)), 
@@ -55,9 +59,26 @@ void view_info_callback(act_map_msgs::ViewInformation view_info)
 //         );
 //     ROS_INFO("view_robot_camera_curr   x = %f, y = %f, z = %f", view_robot_camera_curr.x(), view_robot_camera_curr.y(), view_robot_camera_curr.z());
 //     std::cout<<"R_robot_camera_curr_Matrix = \n"<<R_robot_camera_curr.matrix() <<endl;
-    auto R_robot_camera_max_info = R_robot_camera_curr * R_world_camera_curr.inverse() * R_world_camera_max_info;
     
+    // solve r_c by w_r and w_c;
+    auto R_robot_camera_curr_m = R_world_robot_curr.inverse() * view_world_camera_curr;
+    Eigen::Vector3d R_robot_camera_curr = R_robot_camera_curr_m;
+
+    auto R_robot_max_info_m = R_world_robot_curr.inverse() * view_world_camera_max_info;
+    Eigen::Vector3d R_robot_max_info = R_robot_max_info_m;
+
+    Eigen::AngleAxis<double> R_robot_camera_T(
+         std::acos(R_robot_camera_curr.dot(e3)),
+         e3.cross(R_robot_camera_curr).normalized()
+         );
+    // Eigen::AngleAxis<double> Matrix1_Format = R_robot_camera_curr_m;
+    auto R_robot_camera_max_info = R_robot_camera_T * R_world_camera_curr.inverse() * R_world_camera_max_info;
+    // auto R_robot_camera_max_info = R_world_camera_curr.inverse() * R_world_camera_max_info;
     Eigen::Vector3d view_robot_camera_max_info = R_robot_camera_max_info * e3;
+
+    Eigen::Matrix3d Matrix2_Format;
+    Matrix2_Format = R_world_robot_curr.matrix();
+    Eigen::Vector3d R_world_robot_curr = Matrix2_Format * e3;
 //    ROS_INFO("view_robot_camera_max_info   x = %f, y = %f, z = %f", view_robot_camera_max_info.x(), view_robot_camera_max_info.y(), view_robot_camera_max_info.z());
 
     // 计算得到best_view
@@ -65,9 +86,12 @@ void view_info_callback(act_map_msgs::ViewInformation view_info)
     double curr_view_value = view_info.curr_view_value;
     double alpha = curr_view_value/(curr_view_value + max_info_view_value);
     Eigen::Vector3d view_robot_camera_best;
-//    view_robot_camera_best = (alpha*view_robot_camera_fixed + (1-alpha)*view_robot_camera_max_info).normalized();
-    view_robot_camera_best = view_robot_camera_max_info;
+    alpha = 0.5;
+    view_robot_camera_best = (alpha*R_robot_camera_curr + (1-alpha)*R_robot_max_info).normalized();
+//    view_robot_camera_best = (alpha*R_robot_camera_curr + (1-alpha)*view_robot_camera_max_info).normalized();
     ROS_INFO("view_robot_camera_max_info   x = %f, y = %f, z = %f", view_robot_camera_best.x(), view_robot_camera_best.y(), view_robot_camera_best.z());
+
+//    view_robot_camera_best = R_robot_camera_curr_m;
 
     // plot best_view
     visualization_msgs::Marker m;
@@ -114,21 +138,23 @@ void view_info_callback(act_map_msgs::ViewInformation view_info)
 
 void view_robot_camera_callback(geometry_msgs::Vector3 msg)
 {
-    // feedback from stm32 of T_camera_robot
-    view_robot_camera_curr.x() = msg.x - 1.5708;
-    view_robot_camera_curr.y() = msg.y;
-    view_robot_camera_curr.z() = msg.z;
+    // feedback from stm32 of T_camera_robot- 1.5708
+    view_robot_camera_curr.x() = -msg.y;
+    view_robot_camera_curr.y() = -msg.x;
+    view_robot_camera_curr.z() = -msg.z;
     ROS_INFO("view_robot_camera_curr   x = %f, y = %f, z = %f", view_robot_camera_curr.x(), view_robot_camera_curr.y(), view_robot_camera_curr.z());
 
     Eigen::Vector3d eulerAngle(view_robot_camera_curr.x(),view_robot_camera_curr.y(),view_robot_camera_curr.z());
 
-    Eigen::AngleAxisd rollAngle(eulerAngle(2),Eigen::Vector3d::UnitX());
+    Eigen::AngleAxisd rollAngle(eulerAngle(0),Eigen::Vector3d::UnitX());
     Eigen::AngleAxisd pitchAngle(eulerAngle(1),Eigen::Vector3d::UnitY());
-    Eigen::AngleAxisd yawAngle(eulerAngle(0),Eigen::Vector3d::UnitZ());
+    Eigen::AngleAxisd yawAngle(eulerAngle(2),Eigen::Vector3d::UnitZ());
     
     // 将传入的欧拉角直接转换成轴角形式使用
-    R_robot_camera_curr_Matrix = yawAngle*pitchAngle*rollAngle;
-    R_robot_camera_curr = R_robot_camera_curr_Matrix;
+    Eigen::Matrix3d Matrix_Format;
+    Matrix_Format = yawAngle.matrix()*pitchAngle.matrix()*rollAngle.matrix();
+    R_world_robot_curr = Matrix_Format;
+
 
 //    std::cout<<"R_robot_camera_curr_Matrix = \n"<<R_robot_camera_curr.matrix() <<endl;
     // view_robot_camera_curr = view_robot_camera_curr.normalized();

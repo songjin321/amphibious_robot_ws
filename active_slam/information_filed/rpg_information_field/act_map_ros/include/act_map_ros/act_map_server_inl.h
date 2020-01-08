@@ -521,12 +521,19 @@ void ActMapServer<T>::visualizeKerBestViews() const
       colors[i].g = 0.5f;
     }
   }
+<<<<<<< HEAD
   // best view color
+=======
+
+>>>>>>> 990f2e770672da6ce3fc171389c23345e0f2be0b
   colors[0].r = 1.0f;
   colors[0].g = 0.0f;
   colors[0].b = 0.0f;
 
+<<<<<<< HEAD
   // cur view color
+=======
+>>>>>>> 990f2e770672da6ce3fc171389c23345e0f2be0b
   colors[1].r = 0.0f;
   colors[1].g = 0.0f;
   colors[1].b = 1.0f;
