@@ -98,7 +98,7 @@ scale_thresh: 1.0
 # 0->cv::goodFeaturesToTrack, 使用Patch作为匹配
 # 1->cv::SIFT
 # 2->gpu::SIFT  确保编译开启GPU,已经装好CUDA. catkin build -DENABLE_GPU=ON
-detector_type: 0
+detector_type: 1
 
 ## 是否画图显示滑动窗口
-SHOW_TRACK_IMAGE: 1
+SHOW_TRACK_IMAGE: 0

@@ -63,8 +63,18 @@ class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>
 
         Eigen::Matrix<double, 15, 15> sqrt_info = Eigen::LLT<Eigen::Matrix<double, 15, 15>>(pre_integration->covariance.inverse()).matrixL().transpose();
         //sqrt_info.setIdentity();
+        
         residual = sqrt_info * residual;
-
+        double imu_thresold = 300;
+        if (sqrt(residual[0]*residual[0] +  residual[1]*residual[1] + residual[2]*residual[2]) > imu_thresold
+          || sqrt(residual[3]*residual[3] +  residual[4]*residual[4] + residual[5]*residual[5]) > imu_thresold   
+          || sqrt(residual[6]*residual[6] +  residual[7]*residual[7] + residual[8]*residual[8]) > imu_thresold    
+        )
+        {
+            for (int i = 0; i < 14; i++)
+                residual[i] = 0;
+        }
+        
         if (jacobians)
         {
             double sum_dt = pre_integration->sum_dt;

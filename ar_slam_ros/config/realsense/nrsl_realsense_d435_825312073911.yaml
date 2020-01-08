@@ -1,8 +1,8 @@
 %YAML:1.0
 
 #common parameters
-imu_topic: "/camera/imu"
-image_topic: "/camera/color/image_raw"
+imu_topic: "/d435i/imu"
+image_topic: "/camera2/color/image_raw"
 output_path: "/home/neousys/output/"
 
 #camera calibration 
@@ -11,15 +11,15 @@ camera_name: camera
 image_width: 640
 image_height: 480
 distortion_parameters:
-   k1: 0
-   k2: 0
+   k1: 0.1277
+   k2: -0.2489
    p1: 0
    p2: 0
 projection_parameters:
-   fx: 612.0252685546875
-   fy: 611.8603515625
-   cx: 320.735595703125
-   cy: 239.54910278320312
+   fx: 610.6619
+   fy: 610.4563
+   cx: 326.5625
+   cy: 244.1247
 
 # Extrinsic parameter between IMU and Camera.
 estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
@@ -31,9 +31,9 @@ extrinsicRotation: !!opencv-matrix
    rows: 3
    cols: 3
    dt: d
-   data: [ 0.99964621,  0.01105994,  0.02418954,
-           -0.01088975,  0.9999151,  -0.00715601, 
-           -0.02426663,  0.00689006,  0.99968178]
+   data: [ 0.0,  0.0,  1.0,
+           -1.0,  0.0,  0.0, 
+           0.0,  -1.0,  0.0]
 #Translation from camera frame to imu frame, imu^T_cam
 extrinsicTranslation: !!opencv-matrix
    rows: 3
@@ -69,7 +69,7 @@ load_previous_pose_graph: 0        # load and reuse previous pose graph; load fr
 pose_graph_save_path: "/home/tony-ws1/output/pose_graph/" # save and load path
 
 #unsynchronization parameters
-estimate_td: 0                      # online estimate time offset between camera and imu
+estimate_td: 1                      # online estimate time offset between camera and imu
 td: 0.000                           # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
 
 #rolling shutter parameters
@@ -95,10 +95,10 @@ nOctaveLayers: 3
 scale_thresh: 1.0
 
 #使用哪种特征检测,
-# 0->cv::goodFeaturesToTrack, 使用Patch作为匹配
+# 0->cv::goodFeaturesToTrack
 # 1->cv::SIFT
-# 2->gpu::SIFT  确保编译开启GPU,已经装好CUDA. catkin build -DENABLE_GPU=ON
+# 2->gpu::SIFT
 detector_type: 1
 
 ## 是否画图显示滑动窗口
-SHOW_TRACK_IMAGE: 1
+SHOW_TRACK_IMAGE: 0

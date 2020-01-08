@@ -1,5 +1,5 @@
 <launch>
-    <arg name="config_path" default = "$(find feature_tracker)/../config/realsense/nrsl_realsense_d435i_841512071464.yaml" />
+    <arg name="config_path" default = "$(find feature_tracker)/../config/realsense/nrsl_realsense_d435i_850312070589.yaml" />
     <arg name="config_path2" default = "$(find feature_tracker)/../config/realsense/nrsl_realsense_d435_825312073422.yaml" />
 	<arg name="vins_path" default = "$(find feature_tracker)/../config/../" />
     

@@ -865,7 +865,8 @@ void Estimator::optimization()
 {
     ceres::Problem problem;
     ceres::LossFunction *loss_function;
-    //loss_function = new ceres::HuberLoss(1.0);
+    ceres::LossFunction *loss_function_imu;
+    loss_function_imu = new ceres::CauchyLoss(1.0);
     loss_function = new ceres::CauchyLoss(1.0);
     for (int i = 0; i < WINDOW_SIZE + 1; i++)
     {
@@ -908,7 +909,7 @@ void Estimator::optimization()
         if (pre_integrations[j]->sum_dt > 10.0)
             continue;
         IMUFactor *imu_factor = new IMUFactor(pre_integrations[j]);
-        problem.AddResidualBlock(imu_factor, NULL, para_Pose[i], para_SpeedBias[i], para_Pose[j], para_SpeedBias[j]);
+        problem.AddResidualBlock(imu_factor, loss_function_imu, para_Pose[i], para_SpeedBias[i], para_Pose[j], para_SpeedBias[j]);
     }
     int f_m_cnt = 0;
     int feature_index = -1;

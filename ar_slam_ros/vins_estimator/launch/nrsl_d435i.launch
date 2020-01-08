@@ -15,7 +15,6 @@
        <remap from="/feature_tracker/restart" to="/feature_tracker_amphiRobot/restart" />
     </node>
 
-
     <!--node name="feature_tracker_amphiRobot_compare" pkg="feature_tracker" type="feature_tracker" output="screen">
         <param name="config_file" type="string" value="$(arg config_path_compare)" />
         <param name="vins_folder" type="string" value="$(arg vins_path)" />

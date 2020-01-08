@@ -74,5 +74,5 @@ class FeatureTracker
     #ifdef ENABLE_GPU
     SiftData siftData;
     #endif
-    Ptr<Feature2D> f2d = xfeatures2d::SIFT::create();
+    Ptr<Feature2D> f2d = xfeatures2d::SIFT::create(0, 3, 0.02);
 };

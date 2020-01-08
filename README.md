@@ -72,23 +72,33 @@ catkin build feature_tracker -DENABLE_GPU=ON
 
 ### 1. 测试AmhpiVIO
 
-从实验室网盘上下载包[amphi_vio.bag]()
+在yaml文件中可以修改特征提取的参数,现阶段使用的基于opencv的sift特征
 
-1. roslaunch vins_estimator nrsl_d435i.launch
-2. rosbag play amphi_vio.bag 或者使用相机 roslaunch realsense2_camera rs_maplab.launch
+1. roslaunch vins_estimator euroc.launch
+2. rosbag play Dataset/Euroc/V1_03_difficult.bag 
+3. roslaunch navigation rviz.launch
+
+使用realsense相机
+1. roslaunch realsense2_camera rs_maplab.launch
+2. roslaunch vins_estimator nrsl_d435i.launch (注意修改yaml文件相对应的相机参数)
 3. roslaunch navigation rviz.launch
 
 ### 2. 测试ActiveLocalization
-
-从实验室网盘上下载包[active_localization.bag]()
-
+计算最大信息视角
 1. roslaunch vins_estimator nrsl_d435i.launch
-2. roslaunch active_localization active_localization.launch
-3. rosbag play active_localization.bag
+2. roslaunch act_map_ros trace_map_full_euroc.launch
+3. rosbag play active_localization/active.bag
 4. roslaunch navigation rviz.launch
 
 ### 3. 测试ActiveExposure 
+启动相机,然后主动调节相机的曝光时间
+1. roslaunch realsense2_camera rs_maplab.launch
+2. roslaunch exposure_controller exposure_controller.launch
 
-1. roslaunch exposure_controller exposure_controller.launch
-
-## experiments
+## 数据集说明
+在主机的/home/user/Project/Final_project/Dataset文件夹下有录制的所有的包,实验室的硬盘服务器满了,没传上去,对毕设ppt上使用的包进行说明
+1. AmhpiVIO.bag 在两栖机器人上实际测试AmhpiVIO性能的包,对应ppt第37页的视频
+2. exposure_comparision.bag 野外hdr环境对比自动曝光和主动曝光,对应ppt第32页的视频
+3. final_all.bag 对应ppt第38页的视频
+4. exposure_589_422_localization 文件夹下是使用尾号589和422两个相机,一个自动,一个主动曝光的包,对应ppt第33页的视频
+5. active_localization 文件夹下对应使用和不使用主动视觉调整的包,对应ppt第31页的视频
